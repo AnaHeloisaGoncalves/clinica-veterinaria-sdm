@@ -45,17 +45,3 @@ No Linux ou macOS, use `python3.14 -m venv .venv` e substitua `.venv\Scripts\pyt
 |---|---|---|
 | Clínica | [GET /health](http://127.0.0.1:8000/health) | [Documentação](http://127.0.0.1:8000/docs) |
 | Governo simulado | [GET /health](http://127.0.0.1:8001/health) | [Documentação](http://127.0.0.1:8001/docs) |
-
-## Primeiro envio ao GitHub
-
-Se o grupo já tem um repositório, clone-o, crie a branch `docs/milestone-1`, copie os arquivos pertinentes e abra um pull request. Se este for o repositório inicial, crie um repositório vazio no GitHub e use os comandos abaixo na pasta extraída. Substitua a URL pelo endereço do repositório do grupo.
-
-```bash
-git init -b main
-git add .
-git commit -m "chore: initialize A3 milestone 1"
-git remote add origin https://github.com/SEU-GRUPO/SEU-REPOSITORIO.git
-git push -u origin main
-```
-
-Após o primeiro envio, cada integrante clona o mesmo repositório e cria o próprio ambiente virtual. Para novas tarefas, atualize a `main`, crie uma branch, envie os commits e abra um pull request para revisão.
