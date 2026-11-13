@@ -8,7 +8,7 @@ Estrutura inicial da Milestone 1. Contém duas APIs Python que sobem em processo
 |---|---|---|
 | Linguagem e colaboração | Python 3.14, Git e GitHub | Milestone 1 |
 | APIs | FastAPI, Pydantic e Uvicorn | Base executável na Milestone 1 |
-| Banco e migrações | PostgreSQL, SQLAlchemy e Alembic | A partir da Milestone 2 |
+| Banco e migrações | mySQL, SQLAlchemy e Alembic | A partir da Milestone 2 |
 | Interface web | HTML, CSS e JavaScript | Milestone 3 |
 | Testes | Pytest e Postman | A partir da Milestone 2 |
 
@@ -16,7 +16,7 @@ Estrutura inicial da Milestone 1. Contém duas APIs Python que sobem em processo
 
 - **Python 3.14, Git e GitHub.** Usar a mesma versão de Python nas duas APIs facilita a configuração do ambiente em cada máquina. Git e GitHub permitem versionar código e documentação, dividir o trabalho em branches e revisar as mudanças em pull requests.
 - **FastAPI, Pydantic e Uvicorn.** FastAPI organiza as rotas REST e gera a documentação OpenAPI para a clínica e o governo simulado. Pydantic valida os dados recebidos pelas APIs. Uvicorn permite executar cada serviço em um processo e uma porta próprios.
-- **PostgreSQL, SQLAlchemy e Alembic.** PostgreSQL aplica as restrições do modelo relacional, como CPF e RFID únicos, e permite gravar a vacinação e a comunicação pendente na mesma transação. SQLAlchemy organiza o acesso ao banco a partir do código Python. Alembic versiona as alterações do esquema para que o grupo aplique as mesmas migrações em cada ambiente.
+- **mySQL, SQLAlchemy e Alembic.** mySQL aplica as restrições do modelo relacional, como CPF e RFID únicos, e permite gravar a vacinação e a comunicação pendente na mesma transação. SQLAlchemy organiza o acesso ao banco a partir do código Python. Alembic versiona as alterações do esquema para que o grupo aplique as mesmas migrações em cada ambiente.
 - **HTML, CSS e JavaScript.** HTML estrutura as telas, CSS permite adaptá-las a diferentes tamanhos de tela e JavaScript valida os formulários e envia as requisições à API privada.
 - **Pytest e Postman.** Pytest permite automatizar testes de regras de negócio e integração. Postman permite compartilhar uma coleção de requisições para reproduzir e demonstrar fluxos como autenticação, vacinação e reenvio de pendências.
 
