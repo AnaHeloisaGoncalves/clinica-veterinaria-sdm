@@ -1,47 +1,64 @@
 # Clínica Veterinária · A3 de SDM
 
-Estrutura inicial da Milestone 1. Contém duas APIs Python que sobem em processos e portas separados. O endpoint de saúde verifica se cada processo responde.
+A API privada usa Python 3.14, FastAPI, Pydantic, Uvicorn e MySQL 8. O MySQL aplica as restrições do modelo, como CPF e RFID únicos. A API usa MySQL Connector/Python para executar consultas parametrizadas. Os scripts SQL ficam no diretório database.
 
-## Stack aprovada
+A [documentação da Milestone 1](docs/milestone-1.md) descreve os requisitos e a arquitetura. O [modelo relacional](docs/modelo-relacional.md) registra o desenho original em PostgreSQL. A implementação da Milestone 2 usa MySQL e mantém o modelo como referência.
 
-| Componente | Tecnologia | Etapa |
-|---|---|---|
-| Linguagem e colaboração | Python 3.14, Git e GitHub | Milestone 1 |
-| APIs | FastAPI, Pydantic e Uvicorn | Base executável na Milestone 1 |
-| Banco e migrações | mySQL, SQLAlchemy e Alembic | A partir da Milestone 2 |
-| Interface web | HTML, CSS e JavaScript | Milestone 3 |
-| Testes | Pytest e Postman | A partir da Milestone 2 |
+## Instalação no Windows
 
-### Justificativa das tecnologias
-
-- **Python 3.14, Git e GitHub.** Usar a mesma versão de Python nas duas APIs facilita a configuração do ambiente em cada máquina. Git e GitHub permitem versionar código e documentação, dividir o trabalho em branches e revisar as mudanças em pull requests.
-- **FastAPI, Pydantic e Uvicorn.** FastAPI organiza as rotas REST e gera a documentação OpenAPI para a clínica e o governo simulado. Pydantic valida os dados recebidos pelas APIs. Uvicorn permite executar cada serviço em um processo e uma porta próprios.
-- **mySQL, SQLAlchemy e Alembic.** mySQL aplica as restrições do modelo relacional, como CPF e RFID únicos, e permite gravar a vacinação e a comunicação pendente na mesma transação. SQLAlchemy organiza o acesso ao banco a partir do código Python. Alembic versiona as alterações do esquema para que o grupo aplique as mesmas migrações em cada ambiente.
-- **HTML, CSS e JavaScript.** HTML estrutura as telas, CSS permite adaptá-las a diferentes tamanhos de tela e JavaScript valida os formulários e envia as requisições à API privada.
-- **Pytest e Postman.** Pytest permite automatizar testes de regras de negócio e integração. Postman permite compartilhar uma coleção de requisições para reproduzir e demonstrar fluxos como autenticação, vacinação e reenvio de pendências.
-
-O [DER e dicionário de dados](docs/modelo-relacional.md) orientam a implementação das tabelas e das migrações. O [resumo da Milestone 1](docs/milestone-1.md) registra os requisitos e a arquitetura.
-
-## Rodar localmente
-
-Instale o Python 3.14 e execute os comandos na pasta raiz. No Windows, confirme que o primeiro comando mostra Python 3.14.x antes de criar o ambiente virtual.
+Na raiz do repositório, crie o ambiente e instale as dependências.
 
 ```powershell
 python --version
 python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
-Abra dois terminais na raiz e execute um comando em cada:
+Use Python 3.14.x. No Linux ou macOS, crie o ambiente com `python3.14 -m venv .venv` e use `.venv/bin/python` nos comandos seguintes.
+
+### Banco de dados
+
+Com MySQL 8 em execução, abra o cliente MySQL como um usuário autorizado a criar bancos e usuários. A partir da raiz do repositório, rode `mysql -u root -p` e execute no cliente:
+
+```sql
+SOURCE database/banco1.sql;
+CREATE USER 'clinica_app'@'localhost' IDENTIFIED BY 'SUBSTITUA_POR_UMA_SENHA_FORTE';
+GRANT SELECT, INSERT, UPDATE, DELETE ON clinica_vet.* TO 'clinica_app'@'localhost';
+```
+
+Use um banco vazio para a primeira instalação. O script preserva bancos existentes e não altera tabelas já criadas. Quem tiver dados na estrutura anterior deve preservá-los e migrar o esquema separadamente antes de usar esta API. Senhas antigas em texto puro precisam ser redefinidas.
+
+Preencha `DB_USER` e `DB_PASSWORD` no `.env` com o usuário e a senha escolhidos. Ajuste endereço e porta se necessário e gere um valor próprio para `JWT_SECRET`, por exemplo com `python -c "import secrets; print(secrets.token_urlsafe(48))"`. O arquivo `.env` deve ficar local.
+
+### Acesso inicial e execução
+
+Crie o primeiro veterinário administrador no terminal:
 
 ```powershell
-.venv\Scripts\python.exe -m uvicorn api_clinica.main:app --port 8000
-.venv\Scripts\python.exe -m uvicorn api_governo.main:app --port 8001
+.\.venv\Scripts\python.exe -m api_clinica.criar_administrador
 ```
 
-No Linux ou macOS, use `python3.14 -m venv .venv` e substitua `.venv\Scripts\python.exe` por `.venv/bin/python` nos demais comandos.
+O comando solicita a senha sem exibi-la e imprime um código de confirmação para a demonstração. Inicie os serviços em terminais separados:
 
-| Serviço | Verificação | Swagger |
-|---|---|---|
-| Clínica | [GET /health](http://127.0.0.1:8000/health) | [Documentação](http://127.0.0.1:8000/docs) |
-| Governo simulado | [GET /health](http://127.0.0.1:8001/health) | [Documentação](http://127.0.0.1:8001/docs) |
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn api_clinica.main:app --port 8000
+.\.venv\Scripts\python.exe -m uvicorn api_governo.main:app --port 8001
+```
+
+Abra o [Swagger da clínica](http://127.0.0.1:8000/docs). Envie o código em `POST /confirmar-senha` no campo `codigo` e faça login com e-mail e senha em `POST /login`. No Swagger, use **Authorize** para informar o token retornado. O logout revoga a sessão do token apresentado.
+
+As rotas privadas cobrem endereços, tutores, animais, espécies, raças e veterinários. Para cadastrar um animal, cadastre antes as entidades referenciadas e informe o RFID no cadastro. Somente um administrador pode criar, atualizar ou inativar veterinários. O terminal da API exibe o código de confirmação como simulação do envio por e-mail para novos veterinários. O [governo simulado](http://127.0.0.1:8001/docs) mantém sua rota de saúde.
+
+## Testes da Milestone 2
+
+Em um banco descartável com o esquema aplicado, deixe a API da clínica rodando com a mesma configuração de banco e execute em outro terminal:
+
+```powershell
+$env:ALLOW_TEST_DATA = '1'
+.\.venv\Scripts\python.exe -m tests.entrega2
+```
+
+Use `TEST_API_URL` para informar outra porta. O teste grava dados fictícios e verifica confirmação de senha, login autorizado, senha incorreta, conta inativa, conta sem confirmação, acesso sem token, logout, cadastro e consulta de tutor, atualização, inativação, CPF inválido e duplicado, raça incompatível e RFID duplicado. Use somente um banco de testes, pois os registros de demonstração permanecem gravados.
+
+Consulte as [evidências da execução local](docs/evidencias-milestone-2.md).
