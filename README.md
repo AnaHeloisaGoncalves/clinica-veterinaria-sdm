@@ -62,3 +62,33 @@ $env:ALLOW_TEST_DATA = '1'
 Use `TEST_API_URL` para informar outra porta. O teste grava dados fictícios e verifica confirmação de senha, login autorizado, senha incorreta, conta inativa, conta sem confirmação, acesso sem token, logout, cadastro e consulta de tutor, atualização, inativação, CPF inválido e duplicado, raça incompatível e RFID duplicado. Use somente um banco de testes, pois os registros de demonstração permanecem gravados.
 
 Consulte as [evidências da execução local](docs/evidencias-milestone-2.md).
+
+## Milestone 3 — interface e funcionalidades clínicas
+
+Além da API, esta entrega inclui uma interface web responsiva em `frontend/`. Ela usa o token retornado pelo login em todas as operações privadas, permite logout, consulta de CEP via ViaCEP com preenchimento manual de contingência, cadastro de tutor e animal/RFID, registro local de consultas e vacinas e consulta da ficha/históricos.
+
+### Executar a interface
+
+Com a API da clínica rodando na porta 8000, em outro terminal rode:
+
+```powershell
+cd frontend
+python -m http.server 5173
+```
+
+Abra <http://127.0.0.1:5173>. Para outra URL da API, antes de abrir a página execute no console do navegador:
+
+```js
+localStorage.setItem('clinica_api', 'http://127.0.0.1:8000')
+```
+
+O fluxo demonstrativo é: login do veterinário confirmado → Tutor → informe `01001000` e clique em **Consultar CEP** → complete número/complemento e cadastre → Animal → selecione tutor/espécie/raça opcional e informe RFID → Clínica → registre consulta e vacina (marque antirrábica e próxima dose quando aplicável) → Animal → **Abrir histórico**.
+
+### Casos de erro demonstráveis
+
+- CEP `00000000` ou serviço indisponível: a interface informa o problema e mantém os campos editáveis para preenchimento manual.
+- RFID já cadastrado: a API retorna conflito e a interface mostra “RFID já está em uso...”.
+- Raça de outra espécie: as opções incompatíveis ficam ocultas e a API mantém a validação por chave estrangeira composta.
+- Acesso sem login: a API retorna 401 e a interface volta ao formulário de login.
+
+As rotas clínicas privadas são `POST /clinica/consultas`, `POST /clinica/vacinas` e `GET /clinica/animais/{animal_id}/historico`. O envio ao governo simulado continua fora desta milestone.
