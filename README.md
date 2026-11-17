@@ -69,26 +69,63 @@ Além da API, esta entrega inclui uma interface web responsiva em `frontend/`. E
 
 ### Executar a interface
 
-Com a API da clínica rodando na porta 8000, em outro terminal rode:
+As telas são servidas pela própria API. Na raiz do repositório, execute:
 
 ```powershell
-cd frontend
-python -m http.server 5173
+.\.venv\Scripts\python.exe -m uvicorn api_clinica.main:app --host 127.0.0.1 --port 8000
 ```
 
-Abra <http://127.0.0.1:5173>. Para outra URL da API, antes de abrir a página execute no console do navegador:
+Abra <http://127.0.0.1:8000>. Não é necessário Node, npm ou um servidor separado
+para usar o frontend. A interface usa o mesmo endereço da API.
 
-```js
-localStorage.setItem('clinica_api', 'http://127.0.0.1:8000')
-```
+Para testar em um celular da mesma rede, inicie com `--host 0.0.0.0` e abra
+`http://IP_DO_COMPUTADOR:8000`. Isso depende da rede e do firewall. A configuração
+padrão fica restrita ao próprio computador.
 
-O fluxo demonstrativo é: login do veterinário confirmado → Tutor → informe `01001000` e clique em **Consultar CEP** → complete número/complemento e cadastre → Animal → selecione tutor/espécie/raça opcional e informe RFID → Clínica → registre consulta e vacina (marque antirrábica e próxima dose quando aplicável) → Animal → **Abrir histórico**.
+### Dados fictícios para demonstração
+
+Após criar o banco, inclua `DEMO_PASSWORD` no .env com uma senha de pelo menos 12
+caracteres e execute `python -m scripts.demo` usando o Python da .venv.
+O script cria o veterinário `demo@example.test`, já confirmado para a demonstração,
+e os catálogos Cão/Labrador e Gato/Siamês. Não apaga nem redefine cadastros existentes.
+Use somente um banco local de demonstração. Para contas normais, siga o fluxo de
+criação e confirmação da Milestone 2.
+
+O fluxo demonstrativo é: login → Tutores → consulte `01001000` → complete número/complemento e cadastre → Animais → selecione tutor/espécie/raça opcional e informe RFID → Atendimento → registre consulta e vacina → Animais → **Ficha de [nome]**.
 
 ### Casos de erro demonstráveis
 
 - CEP `00000000` ou serviço indisponível: a interface informa o problema e mantém os campos editáveis para preenchimento manual.
 - RFID já cadastrado: a API retorna conflito e a interface mostra “RFID já está em uso...”.
-- Raça de outra espécie: as opções incompatíveis ficam ocultas e a API mantém a validação por chave estrangeira composta.
+- Raça de outra espécie: a lista é reconstruída ao trocar a espécie e a seleção anterior é limpa. A API mantém a validação por chave estrangeira composta.
 - Acesso sem login: a API retorna 401 e a interface volta ao formulário de login.
 
 As rotas clínicas privadas são `POST /clinica/consultas`, `POST /clinica/vacinas` e `GET /clinica/animais/{animal_id}/historico`. O envio ao governo simulado continua fora desta milestone.
+
+A consulta de CEP usa `GET /clinica/cep/{cep}`: a API chama o ViaCEP com timeout de
+5 segundos. `POST /clinica/tutores` grava tutor e endereço na mesma transação.
+Consultas e vacinas recebem o veterinário da sessão. As datas e horas de consulta
+são informadas no horário local da clínica, sem conversão de fuso.
+
+Em Atendimento estão todos os campos clínicos do modelo. A vacina aplicada exige
+data de aplicação; a agendada exige data de agendamento. Próxima dose e validade do
+lote são conferidas quando informadas. A ficha mostra os detalhes e diferencia
+previsões futuras de datas que já passaram. Não há baixa automática de uma previsão
+ao registrar uma nova aplicação: confira o histórico.
+
+### Repetir os testes
+
+Com o banco descartável configurado, a conta de demonstração criada e a API ligada:
+
+```powershell
+$env:ALLOW_TEST_DATA = '1'
+.\.venv\Scripts\python.exe -m unittest tests.entrega2 tests.entrega3 -v
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m playwright install chromium
+.\.venv\Scripts\python.exe -m tests.demo_web
+```
+
+Os testes deixam dados fictícios no banco. O teste web consulta o ViaCEP real e
+atualiza as capturas em `docs/evidencias/`. Timeout e indisponibilidade são simulados
+nos testes da API para permitir reprodução. A prova de execução e os limites estão
+em [Testes da Milestone 3](docs/evidencias-milestone-3.md).

@@ -35,5 +35,12 @@ def write(connection, sql, values=()):
             cursor.execute(sql, values)
         except IntegrityError as error:
             connection.rollback()
-            raise HTTPException(409, "Registro duplicado ou referência inválida") from error
+            mensagem = "Registro duplicado ou referência inválida"
+            if error.errno == 1062 and "vinculo_microchip" in sql:
+                mensagem = "RFID já está em uso. Informe outro código."
+            elif error.errno == 1062 and "tutor" in sql:
+                mensagem = "Já existe um tutor com este CPF."
+            elif error.errno == 1452 and "animal" in sql:
+                mensagem = "Confira tutor, espécie e raça. A raça precisa pertencer à espécie escolhida."
+            raise HTTPException(409, mensagem) from error
         return cursor.lastrowid, cursor.rowcount
