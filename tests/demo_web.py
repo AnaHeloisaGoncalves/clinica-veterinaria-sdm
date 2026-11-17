@@ -122,4 +122,3 @@ with sync_playwright() as p:
     assert not erros, erros
     browser.close()
 print("OK: login, CEP real, tutor, animal sem raça/nascimento, RFID duplicado, consulta, vacinas, ficha, celular, logout e sessão expirada.")
-
