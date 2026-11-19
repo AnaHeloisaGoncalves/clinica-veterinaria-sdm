@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS vinculo_microchip (
 );
 -- 8. Consulta
 CREATE TABLE IF NOT EXISTS consulta (
+    INDEX idx_consulta_animal_data (animal_id, data_hora),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
     veterinario_id BIGINT NOT NULL,
@@ -112,11 +113,14 @@ CREATE TABLE IF NOT EXISTS consulta (
     peso_registrado_kg DECIMAL(8,3),
     temperatura_c DECIMAL(5,2),
     situacao VARCHAR(20) DEFAULT 'AGENDADA',
+    CHECK (situacao IN ('AGENDADA', 'REALIZADA', 'CANCELADA', 'NAO_COMPARECEU')),
+    CHECK (situacao <> 'REALIZADA' OR peso_registrado_kg IS NOT NULL),
     FOREIGN KEY (animal_id) REFERENCES animal(id),
     FOREIGN KEY (veterinario_id) REFERENCES veterinario(id)
 );
 -- 9. Aplicação de Vacina
 CREATE TABLE IF NOT EXISTS vacina (
+    INDEX idx_vacina_animal_data (animal_id, data_aplicacao),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
     veterinario_id BIGINT NOT NULL,
@@ -133,11 +137,18 @@ CREATE TABLE IF NOT EXISTS vacina (
     dose_etapa VARCHAR(60),
     proxima_dose_em DATE,
     situacao VARCHAR(10) DEFAULT 'APLICADA',
+    CHECK (situacao IN ('AGENDADA', 'APLICADA', 'CANCELADA')),
+    CHECK (situacao <> 'APLICADA' OR
+           (data_aplicacao IS NOT NULL AND fabricante IS NOT NULL AND numero_lote IS NOT NULL
+            AND via_aplicacao IS NOT NULL AND validade_lote IS NOT NULL)),
+    CHECK (situacao = 'APLICADA' OR (data_aplicacao IS NULL AND proxima_dose_em IS NULL)),
+    CHECK (proxima_dose_em IS NULL OR data_aplicacao IS NULL OR proxima_dose_em > data_aplicacao),
     FOREIGN KEY (animal_id) REFERENCES animal(id),
     FOREIGN KEY (veterinario_id) REFERENCES veterinario(id)
 );
 -- 10. Integração com o Governo
 CREATE TABLE IF NOT EXISTS integracao_governo (
+    INDEX idx_integracao_situacao_data (situacao, solicitada_em),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
     vacina_id BIGINT,
