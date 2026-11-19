@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS vinculo_microchip (
 );
 -- 8. Consulta
 CREATE TABLE IF NOT EXISTS consulta (
+    INDEX idx_consulta_animal_data (animal_id, data_hora),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
     veterinario_id BIGINT NOT NULL,
@@ -119,6 +120,7 @@ CREATE TABLE IF NOT EXISTS consulta (
 );
 -- 9. Aplicação de Vacina
 CREATE TABLE IF NOT EXISTS vacina (
+    INDEX idx_vacina_animal_data (animal_id, data_aplicacao),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
     veterinario_id BIGINT NOT NULL,
@@ -146,6 +148,7 @@ CREATE TABLE IF NOT EXISTS vacina (
 );
 -- 10. Integração com o Governo
 CREATE TABLE IF NOT EXISTS integracao_governo (
+    INDEX idx_integracao_situacao_data (situacao, solicitada_em),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
     vacina_id BIGINT,
@@ -168,7 +171,3 @@ CREATE TABLE IF NOT EXISTS sessao (
     expira_em DATETIME NOT NULL,
     FOREIGN KEY (veterinario_id) REFERENCES veterinario(id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_consulta_animal_data ON consulta (animal_id, data_hora);
-CREATE INDEX IF NOT EXISTS idx_vacina_animal_data ON vacina (animal_id, data_aplicacao);
-CREATE INDEX IF NOT EXISTS idx_integracao_situacao_data ON integracao_governo (situacao, solicitada_em);

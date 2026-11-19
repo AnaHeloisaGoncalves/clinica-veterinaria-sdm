@@ -94,6 +94,10 @@ class EntregaTres(unittest.TestCase):
         h = self.client.get(f"/clinica/animais/{animal_id}/historico").json()
         self.assertEqual(len(h["proximas_doses"]), 1)
         self.assertEqual(h["proximas_doses"][0]["prazo"], "ATRASADA")
+        self.assertEqual(self.client.delete(f"/animais/{animal_id}").status_code, 204)
+        ficha = self.client.get(f"/clinica/animais/{animal_id}/historico")
+        self.assertEqual(ficha.status_code, 200)
+        self.assertEqual(len(ficha.json()["vacinas"]), 2)
 
     def test_cep_inexistente_timeout_indisponivel(self):
         request = httpx.Request("GET", "https://viacep.com.br")

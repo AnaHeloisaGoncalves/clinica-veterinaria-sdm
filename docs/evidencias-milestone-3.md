@@ -45,6 +45,11 @@ usa emulação de tamanho no Chromium, não um aparelho físico.
 
 ## Limites desta etapa
 
+Na revisão de 18/11, os sete testes e a demonstração no Chromium passaram novamente.
+O script SQL foi aplicado duas vezes em um banco novo no MySQL 8.4, com os três
+índices de consulta confirmados. O teste de histórico também verifica a leitura
+das vacinas após a inativação do animal.
+
 O registro de vacinação é local. A comunicação com o governo fica para a Milestone 4.
 As próximas doses são previsões informadas pelo veterinário. Uma nova aplicação
 não encerra automaticamente uma previsão anterior; a ficha orienta conferir o histórico.

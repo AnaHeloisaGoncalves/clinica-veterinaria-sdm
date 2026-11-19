@@ -35,8 +35,8 @@ class Consulta(DadosClinicos):
             raise ValueError("Informe data e hora local da clínica, sem fuso horário")
         if self.situacao == "REALIZADA" and self.peso_registrado_kg is None:
             raise ValueError("Informe o peso registrado para uma consulta realizada")
-        if self.situacao != "AGENDADA" and self.data_hora > datetime.now():
-            raise ValueError("Somente consultas agendadas podem ter data futura")
+        if self.situacao in ("REALIZADA", "NAO_COMPARECEU") and self.data_hora > datetime.now():
+            raise ValueError("O horário do atendimento ainda não chegou")
         return self
 
 class Vacina(DadosClinicos):
@@ -110,7 +110,8 @@ def criar_vacina(dados: Vacina, db=Depends(database), vet=Depends(sessao)):
 
 @router.get("/animais/{animal_id}/historico")
 def historico_animal(animal_id: int, db=Depends(database)):
-    ensure_animal(db, animal_id)
+    if not query(db, "SELECT id FROM animal WHERE id = %s", (animal_id,)):
+        raise HTTPException(404, "Animal não encontrado")
     consultas = query(db, "SELECT c.*, v.nome_completo AS veterinario_nome FROM consulta c JOIN veterinario v ON v.id = c.veterinario_id WHERE c.animal_id = %s ORDER BY c.data_hora DESC", (animal_id,))
     vacinas = query(db, "SELECT z.*, v.nome_completo AS veterinario_nome FROM vacina z JOIN veterinario v ON v.id = z.veterinario_id WHERE z.animal_id = %s ORDER BY COALESCE(z.data_aplicacao, z.data_agendada) DESC", (animal_id,))
     proximas = [dict(id=v["id"], nome_vacina=v["nome_vacina"], antirrabica=v["antirrabica"],

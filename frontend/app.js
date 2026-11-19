@@ -452,6 +452,7 @@ function clinica() {
         d,
       );
       form.reset();
+      form.elements.situacao.dispatchEvent(new Event("change"));
       avisar(
         (nome === "consulta" ? "Consulta" : "Vacina") +
           " registrada. Abra a ficha do animal para conferir.",
