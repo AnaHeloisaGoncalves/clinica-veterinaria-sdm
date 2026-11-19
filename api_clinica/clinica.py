@@ -18,7 +18,7 @@ class DadosClinicos(BaseModel):
 class Consulta(DadosClinicos):
     animal_id: int = Field(gt=0)
     data_hora: datetime
-    motivo: str | None = None
+    motivo: str = Field(min_length=1)
     anamnese: str | None = None
     sintomas: str | None = None
     diagnostico: str | None = None
@@ -51,7 +51,7 @@ class Vacina(DadosClinicos):
     observacoes: str | None = None
     data_agendada: date | None = None
     data_aplicacao: date | None = None
-    dose_etapa: str | None = Field(default=None, max_length=60)
+    dose_etapa: str = Field(min_length=1, max_length=60)
     proxima_dose_em: date | None = None
     situacao: Literal["APLICADA", "AGENDADA", "CANCELADA"] = "APLICADA"
 

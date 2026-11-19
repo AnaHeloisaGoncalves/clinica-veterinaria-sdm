@@ -44,7 +44,7 @@ class EntregaTres(unittest.TestCase):
         self.assertEqual(repetido.status_code, 409)
         self.assertIn("RFID", repetido.json()["detail"])
         consulta = self.client.post("/clinica/consultas", json={
-            "animal_id": animal_id, "data_hora": "2026-11-16T10:00:00", "situacao": "REALIZADA",
+            "animal_id": animal_id, "motivo": "Rotina", "data_hora": "2026-11-16T10:00:00", "situacao": "REALIZADA",
             "anamnese": "Demonstração", "sintomas": "Sem queixas", "diagnostico": "Avaliação de rotina",
             "prescricao_medicamentos": "Sem prescrição", "peso_registrado_kg": 3, "temperatura_c": 38.5})
         self.assertEqual(consulta.status_code, 201, consulta.text)
@@ -63,9 +63,22 @@ class EntregaTres(unittest.TestCase):
         self.assertEqual(historico["microchip"]["codigo_rfid"], self.animal["codigo_rfid"])
         self.assertEqual({v["antirrabica"] for v in historico["vacinas"]}, {0, 1})
 
+    def test_campos_clinicos_obrigatorios(self):
+        animal_id = self.criar_animal()
+        casos = [
+            ("consultas", "motivo", {"situacao": "AGENDADA", "data_hora": "2026-01-10T10:00:00"}),
+            ("vacinas", "dose_etapa", {"situacao": "AGENDADA", "data_agendada": "2026-01-10", "nome_vacina": "Teste"}),
+        ]
+        for rota, campo, dados in casos:
+            for campos in [{}, {campo: None}, {campo: ""}, {campo: "   "}]:
+                with self.subTest(rota=rota, campos=campos):
+                    resposta = self.client.post(f"/clinica/{rota}", json={"animal_id": animal_id, **dados, **campos})
+                    self.assertEqual(resposta.status_code, 422)
+                    self.assertIn(["body", campo], [erro["loc"] for erro in resposta.json()["detail"]])
+
     def test_datas_situacao_e_responsavel(self):
         animal_id = self.criar_animal()
-        base = dict(animal_id=animal_id, nome_vacina="Teste")
+        base = dict(animal_id=animal_id, nome_vacina="Teste", dose_etapa="Reforço")
         for dados in [
             base, {**base, "situacao": "INVALIDA"},
             {**base, "data_aplicacao": str(date.today() + timedelta(days=1))},
@@ -78,18 +91,18 @@ class EntregaTres(unittest.TestCase):
             with self.subTest(dados=dados):
                 self.assertEqual(self.client.post("/clinica/vacinas", json=dados).status_code, 422)
         self.assertEqual(self.client.post("/clinica/consultas", json={
-            "animal_id": animal_id, "data_hora": "2026-01-10T10:00:00", "situacao": "INVALIDA"}).status_code, 422)
+            "animal_id": animal_id, "motivo": "Rotina", "data_hora": "2026-01-10T10:00:00", "situacao": "INVALIDA"}).status_code, 422)
         self.assertEqual(self.client.post("/clinica/consultas", json={
-            "animal_id": animal_id, "data_hora": "2026-01-10T10:00:00", "situacao": "REALIZADA"}).status_code, 422)
+            "animal_id": animal_id, "motivo": "Rotina", "data_hora": "2026-01-10T10:00:00", "situacao": "REALIZADA"}).status_code, 422)
         self.assertEqual(self.client.post("/clinica/consultas", json={
-            "animal_id": animal_id, "data_hora": "2026-01-10T10:00:00",
+            "animal_id": animal_id, "motivo": "Rotina", "data_hora": "2026-01-10T10:00:00",
             "situacao": "NAO_COMPARECEU"}).status_code, 201)
 
     def test_agendamento_cancelamento_e_atraso(self):
         animal_id = self.criar_animal()
         for situacao in ["AGENDADA", "CANCELADA"]:
             resposta = self.client.post("/clinica/vacinas", json={
-                "animal_id": animal_id, "nome_vacina": situacao, "situacao": situacao, "data_agendada": "2020-01-01"})
+                "animal_id": animal_id, "nome_vacina": situacao, "dose_etapa": "Reforço", "situacao": situacao, "data_agendada": "2020-01-01"})
             self.assertEqual(resposta.status_code, 201)
         h = self.client.get(f"/clinica/animais/{animal_id}/historico").json()
         self.assertEqual(len(h["proximas_doses"]), 1)

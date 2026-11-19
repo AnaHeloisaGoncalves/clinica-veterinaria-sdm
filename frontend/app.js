@@ -78,13 +78,15 @@ function campo(nome, titulo, tipo = "text", obrigatorio = false, extra = "") {
     "></label>"
   );
 }
-function texto(nome, titulo) {
+function texto(nome, titulo, obrigatorio = false) {
   return (
     "<label>" +
     titulo +
     '<textarea name="' +
     nome +
-    '" maxlength="10000"></textarea></label>'
+    '" maxlength="10000"' +
+    (obrigatorio ? " required" : "") +
+    "></textarea></label>"
   );
 }
 function seletor(nome, titulo, opcoes, opcional = false) {
@@ -411,7 +413,7 @@ function clinica() {
       campo("data_hora", "Data e hora da consulta", "datetime-local", true) +
       situacoes(["REALIZADA", "AGENDADA", "CANCELADA", "NAO_COMPARECEU"]) +
       Object.entries(camposConsulta)
-        .map(([n, t]) => texto(n, t))
+        .map(([n, t]) => texto(n, t, n === "motivo"))
         .join("") +
       campo(
         "peso_registrado_kg",
@@ -436,7 +438,7 @@ function clinica() {
       campo("fabricante", "Fabricante") +
       campo("numero_lote", "Número do lote") +
       campo("via_aplicacao", "Via de aplicação") +
-      campo("dose_etapa", "Dose / etapa") +
+      campo("dose_etapa", "Dose / etapa", "text", true, 'maxlength="60"') +
       campo("validade_lote", "Validade do lote", "date") +
       campo("data_agendada", "Data agendada", "date") +
       campo("data_aplicacao", "Data de aplicação", "date") +

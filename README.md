@@ -107,7 +107,7 @@ A consulta de CEP usa `GET /clinica/cep/{cep}`: a API chama o ViaCEP com timeout
 Consultas e vacinas recebem o veterinário da sessão. As datas e horas de consulta
 são informadas no horário local da clínica, sem conversão de fuso.
 
-Em Atendimento estão todos os campos clínicos do modelo. A vacina aplicada exige
+Em Atendimento, toda consulta exige um motivo e toda vacinação exige a dose ou etapa (por exemplo, primeira dose ou reforço). A vacina aplicada exige
 data de aplicação, fabricante, lote, via de aplicação e validade do lote; a agendada
 exige data de agendamento. Próxima dose e validade do lote são conferidas quando
 informadas. Consultas realizadas exigem o peso registrado; a situação também permite

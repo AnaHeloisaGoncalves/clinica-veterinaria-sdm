@@ -70,8 +70,9 @@ with sync_playwright() as p:
     page.screenshot(path=str(destino / "04-rfid-duplicado.png"), full_page=True)
     page.get_by_role("button", name="Atendimento", exact=True).click()
     consulta = page.locator("#consulta")
+    assert consulta.get_by_label("Motivo", exact=True).evaluate("el => el.validity.valueMissing")
     consulta.get_by_role("combobox", name="Animal", exact=True).select_option(label=nome_animal)
-    consulta.get_by_label("Data e hora da consulta").fill(str(date.today()) + "T10:00")
+    consulta.get_by_label("Data e hora da consulta").fill(str(date.today() - timedelta(days=1)) + "T10:00")
     for label, value in {"Motivo": "Avaliação de rotina", "Anamnese": "Animal ativo",
                          "Sintomas": "Sem queixas", "Diagnóstico": "Avaliação demonstrativa",
                          "Tratamento": "Acompanhamento", "Prescrição de medicamentos": "Sem prescrição",
@@ -82,6 +83,7 @@ with sync_playwright() as p:
     consulta.get_by_role("button", name="Registrar consulta").click()
     expect(page.get_by_role("status")).to_contain_text("Consulta registrada")
     vacina = page.locator("#vacina")
+    assert vacina.get_by_label("Dose / etapa").evaluate("el => el.validity.valueMissing")
     vacina.get_by_role("combobox", name="Animal", exact=True).select_option(label=nome_animal)
     vacina.get_by_label("Nome da vacina").fill("Antirrábica demo")
     vacina.get_by_label("Vacina antirrábica", exact=True).check()
@@ -97,6 +99,7 @@ with sync_playwright() as p:
     # Confirma o caso antes quebrado: próxima dose em branco.
     vacina.get_by_role("combobox", name="Animal", exact=True).select_option(label=nome_animal)
     vacina.get_by_label("Nome da vacina").fill("Vacina demo sem próxima dose")
+    vacina.get_by_label("Dose / etapa").fill("Dose única")
     vacina.get_by_label("Fabricante", exact=True).fill("Fabricante fictício")
     vacina.get_by_label("Número do lote").fill("DEMO-002")
     vacina.get_by_label("Via de aplicação").fill("SC")
