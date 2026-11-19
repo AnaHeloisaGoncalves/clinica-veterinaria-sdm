@@ -50,7 +50,8 @@ class EntregaTres(unittest.TestCase):
         self.assertEqual(consulta.status_code, 201, consulta.text)
         vacina = dict(animal_id=animal_id, nome_vacina="Antirrábica teste", antirrabica=True,
                       data_aplicacao=str(date.today()), proxima_dose_em=str(date.today() + timedelta(days=365)),
-                      fabricante="Fictício", numero_lote="DEMO", via_aplicacao="SC", dose_etapa="1", situacao="APLICADA")
+                      fabricante="Fictício", numero_lote="DEMO", via_aplicacao="SC",
+                      validade_lote=str(date.today() + timedelta(days=730)), dose_etapa="1", situacao="APLICADA")
         self.assertEqual(self.client.post("/clinica/vacinas", json=vacina).status_code, 201)
         sem_proxima = {**vacina, "proxima_dose_em": None, "antirrabica": False}
         self.assertEqual(self.client.post("/clinica/vacinas", json=sem_proxima).status_code, 201)
@@ -78,6 +79,11 @@ class EntregaTres(unittest.TestCase):
                 self.assertEqual(self.client.post("/clinica/vacinas", json=dados).status_code, 422)
         self.assertEqual(self.client.post("/clinica/consultas", json={
             "animal_id": animal_id, "data_hora": "2026-01-10T10:00:00", "situacao": "INVALIDA"}).status_code, 422)
+        self.assertEqual(self.client.post("/clinica/consultas", json={
+            "animal_id": animal_id, "data_hora": "2026-01-10T10:00:00", "situacao": "REALIZADA"}).status_code, 422)
+        self.assertEqual(self.client.post("/clinica/consultas", json={
+            "animal_id": animal_id, "data_hora": "2026-01-10T10:00:00",
+            "situacao": "NAO_COMPARECEU"}).status_code, 201)
 
     def test_agendamento_cancelamento_e_atraso(self):
         animal_id = self.criar_animal()

@@ -108,8 +108,10 @@ Consultas e vacinas recebem o veterinário da sessão. As datas e horas de consu
 são informadas no horário local da clínica, sem conversão de fuso.
 
 Em Atendimento estão todos os campos clínicos do modelo. A vacina aplicada exige
-data de aplicação; a agendada exige data de agendamento. Próxima dose e validade do
-lote são conferidas quando informadas. A ficha mostra os detalhes e diferencia
+data de aplicação, fabricante, lote, via de aplicação e validade do lote; a agendada
+exige data de agendamento. Próxima dose e validade do lote são conferidas quando
+informadas. Consultas realizadas exigem o peso registrado; a situação também permite
+`NAO_COMPARECEU`. A ficha mostra os detalhes e diferencia
 previsões futuras de datas que já passaram. Não há baixa automática de uma previsão
 ao registrar uma nova aplicação: confira o histórico.
 

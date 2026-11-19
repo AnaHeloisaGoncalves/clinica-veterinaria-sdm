@@ -89,6 +89,7 @@ with sync_playwright() as p:
     vacina.get_by_label("Número do lote").fill("DEMO-001")
     vacina.get_by_label("Via de aplicação").fill("SC")
     vacina.get_by_label("Dose / etapa").fill("1")
+    vacina.get_by_label("Validade do lote", exact=True).fill(str(date.today() + timedelta(days=730)))
     vacina.get_by_label("Data de aplicação", exact=True).fill(str(date.today()))
     vacina.get_by_label("Próxima dose (opcional)").fill(str(date.today() + timedelta(days=365)))
     vacina.get_by_role("button", name="Registrar vacina").click()
@@ -96,6 +97,10 @@ with sync_playwright() as p:
     # Confirma o caso antes quebrado: próxima dose em branco.
     vacina.get_by_role("combobox", name="Animal", exact=True).select_option(label=nome_animal)
     vacina.get_by_label("Nome da vacina").fill("Vacina demo sem próxima dose")
+    vacina.get_by_label("Fabricante", exact=True).fill("Fabricante fictício")
+    vacina.get_by_label("Número do lote").fill("DEMO-002")
+    vacina.get_by_label("Via de aplicação").fill("SC")
+    vacina.get_by_label("Validade do lote", exact=True).fill(str(date.today() + timedelta(days=730)))
     vacina.get_by_label("Data de aplicação", exact=True).fill(str(date.today()))
     vacina.get_by_role("button", name="Registrar vacina").click()
     expect(page.get_by_role("status")).to_contain_text("Vacina registrada")

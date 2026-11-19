@@ -409,7 +409,7 @@ function clinica() {
       '<section class="card"><h2>Consulta</h2><form id="consulta">' +
       opcoesAnimais() +
       campo("data_hora", "Data e hora da consulta", "datetime-local", true) +
-      situacoes(["REALIZADA", "AGENDADA", "CANCELADA"]) +
+      situacoes(["REALIZADA", "AGENDADA", "CANCELADA", "NAO_COMPARECEU"]) +
       Object.entries(camposConsulta)
         .map(([n, t]) => texto(n, t))
         .join("") +
@@ -458,6 +458,30 @@ function clinica() {
       );
     });
   }
+  const consulta = document.querySelector("#consulta");
+  const vacina = document.querySelector("#vacina");
+  function exigirConsulta() {
+    const realizada = consulta.elements.situacao.value === "REALIZADA";
+    consulta.elements.peso_registrado_kg.required = realizada;
+  }
+  function exigirVacina() {
+    const aplicada = vacina.elements.situacao.value === "APLICADA";
+    for (const nome of [
+      "fabricante",
+      "numero_lote",
+      "via_aplicacao",
+      "validade_lote",
+      "data_aplicacao",
+    ]) {
+      vacina.elements[nome].required = aplicada;
+    }
+    vacina.elements.data_agendada.required =
+      vacina.elements.situacao.value === "AGENDADA";
+  }
+  consulta.elements.situacao.onchange = exigirConsulta;
+  vacina.elements.situacao.onchange = exigirVacina;
+  exigirConsulta();
+  exigirVacina();
 }
 function detalhes(registro, campos) {
   return (

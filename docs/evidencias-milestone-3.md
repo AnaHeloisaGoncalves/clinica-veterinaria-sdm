@@ -13,7 +13,9 @@ Resultado: **7 testes passaram** (1 da Milestone 2 e 6 da Milestone 3).
 - Animal sem raça e sem nascimento, usando idade estimada.
 - RFID duplicado retorna 409 e mensagem específica.
 - Vacina com e sem próxima dose; classificação antirrábica preservada.
+- Vacina aplicada exige fabricante, lote, via e validade; consulta realizada exige peso.
 - Datas incoerentes, situação inválida e tentativa de escolher outro veterinário rejeitadas com 422.
+- Consulta com `NAO_COMPARECEU` registrada e apresentada no histórico.
 - Agendamento atrasado identificado; vacina cancelada excluída das previsões.
 - CEP inexistente, timeout e serviço indisponível: respostas externas simuladas nos testes automatizados.
 - Acesso sem token e token revogado rejeitados.

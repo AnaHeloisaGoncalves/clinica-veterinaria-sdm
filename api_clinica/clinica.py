@@ -27,12 +27,16 @@ class Consulta(DadosClinicos):
     prescricao_medicamentos: str | None = None
     peso_registrado_kg: Decimal | None = Field(default=None, gt=0, max_digits=8, decimal_places=3)
     temperatura_c: Decimal | None = Field(default=None, gt=0, lt=100, max_digits=5, decimal_places=2)
-    situacao: Literal["REALIZADA", "AGENDADA", "CANCELADA"] = "REALIZADA"
+    situacao: Literal["REALIZADA", "AGENDADA", "CANCELADA", "NAO_COMPARECEU"] = "REALIZADA"
 
     @model_validator(mode="after")
     def data_local(self):
         if self.data_hora.tzinfo is not None:
             raise ValueError("Informe data e hora local da clínica, sem fuso horário")
+        if self.situacao == "REALIZADA" and self.peso_registrado_kg is None:
+            raise ValueError("Informe o peso registrado para uma consulta realizada")
+        if self.situacao != "AGENDADA" and self.data_hora > datetime.now():
+            raise ValueError("Somente consultas agendadas podem ter data futura")
         return self
 
 class Vacina(DadosClinicos):
@@ -55,6 +59,17 @@ class Vacina(DadosClinicos):
     def validar_datas(self):
         if self.situacao == "APLICADA" and not self.data_aplicacao:
             raise ValueError("Informe a data de aplicação")
+        if self.situacao == "APLICADA":
+            faltando = [
+                nome for nome, valor in {
+                    "fabricante": self.fabricante,
+                    "número do lote": self.numero_lote,
+                    "via de aplicação": self.via_aplicacao,
+                    "validade do lote": self.validade_lote,
+                }.items() if not valor
+            ]
+            if faltando:
+                raise ValueError("Informe " + ", ".join(faltando) + " para vacina aplicada")
         if self.situacao == "AGENDADA" and not self.data_agendada:
             raise ValueError("Informe a data agendada")
         if self.situacao != "APLICADA" and (self.data_aplicacao or self.proxima_dose_em):
@@ -69,8 +84,8 @@ class Vacina(DadosClinicos):
         return self
 
 def ensure_animal(db, animal_id):
-    if not query(db, "SELECT id FROM animal WHERE id = %s", (animal_id,)):
-        raise HTTPException(404, "Animal não encontrado")
+    if not query(db, "SELECT id FROM animal WHERE id = %s AND situacao = 'ATIVO'", (animal_id,)):
+        raise HTTPException(404, "Animal não encontrado ou inativo")
 
 def insert_clinical(db, table, model, extra):
     values = model.model_dump()

@@ -112,6 +112,8 @@ CREATE TABLE IF NOT EXISTS consulta (
     peso_registrado_kg DECIMAL(8,3),
     temperatura_c DECIMAL(5,2),
     situacao VARCHAR(20) DEFAULT 'AGENDADA',
+    CHECK (situacao IN ('AGENDADA', 'REALIZADA', 'CANCELADA', 'NAO_COMPARECEU')),
+    CHECK (situacao <> 'REALIZADA' OR peso_registrado_kg IS NOT NULL),
     FOREIGN KEY (animal_id) REFERENCES animal(id),
     FOREIGN KEY (veterinario_id) REFERENCES veterinario(id)
 );
@@ -133,6 +135,12 @@ CREATE TABLE IF NOT EXISTS vacina (
     dose_etapa VARCHAR(60),
     proxima_dose_em DATE,
     situacao VARCHAR(10) DEFAULT 'APLICADA',
+    CHECK (situacao IN ('AGENDADA', 'APLICADA', 'CANCELADA')),
+    CHECK (situacao <> 'APLICADA' OR
+           (data_aplicacao IS NOT NULL AND fabricante IS NOT NULL AND numero_lote IS NOT NULL
+            AND via_aplicacao IS NOT NULL AND validade_lote IS NOT NULL)),
+    CHECK (situacao = 'APLICADA' OR (data_aplicacao IS NULL AND proxima_dose_em IS NULL)),
+    CHECK (proxima_dose_em IS NULL OR data_aplicacao IS NULL OR proxima_dose_em > data_aplicacao),
     FOREIGN KEY (animal_id) REFERENCES animal(id),
     FOREIGN KEY (veterinario_id) REFERENCES veterinario(id)
 );
@@ -160,3 +168,7 @@ CREATE TABLE IF NOT EXISTS sessao (
     expira_em DATETIME NOT NULL,
     FOREIGN KEY (veterinario_id) REFERENCES veterinario(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_consulta_animal_data ON consulta (animal_id, data_hora);
+CREATE INDEX IF NOT EXISTS idx_vacina_animal_data ON vacina (animal_id, data_aplicacao);
+CREATE INDEX IF NOT EXISTS idx_integracao_situacao_data ON integracao_governo (situacao, solicitada_em);
