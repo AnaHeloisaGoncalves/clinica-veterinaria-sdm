@@ -1,0 +1,14 @@
+﻿RESULTADO DOS TESTES MANUAIS - ETAPA 5
+
+Login: PASSOU
+Cadastro de tutor: PASSOU
+Consulta de CEP: PASSOU
+Cadastro de animal: PASSOU
+Registro de consulta: PASSOU
+Registro de vacina: PASSOU
+Histórico do animal: PASSOU
+
+Observação:
+- Inicialmente houve investigação na integração governamental.
+- O problema foi identificado na execução incorreta dos servidores nas portas 8000 e 8001.
+- Após a correção, a integração governamental funcionou normalmente.
