@@ -6,12 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import router as auth_router
 from .cadastros import router as cadastro_router
 from .clinica import router as clinica_router
+from .integracao import router as integracao_router
 
 app = FastAPI(title="API da Clínica Veterinária")
 app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5500", "http://localhost:5500"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(auth_router)
 app.include_router(cadastro_router)
 app.include_router(clinica_router)
+app.include_router(integracao_router)
 
 
 @app.get("/health")

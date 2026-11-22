@@ -131,3 +131,7 @@ Os testes deixam dados fictícios no banco. O teste web consulta o ViaCEP real e
 atualiza as capturas em `docs/evidencias/`. Timeout e indisponibilidade são simulados
 nos testes da API para permitir reprodução. A prova de execução e os limites estão
 em [Testes da Milestone 3](docs/evidencias-milestone-3.md).
+
+## Milestone 4
+
+A clínica comunica aplicações antirrábicas ao governo simulado e mostra pendências e protocolos na ficha do animal. Siga a [configuração e demonstração da Milestone 4](docs/milestone-4.md) para configurar a chave compartilhada, aplicar a atualização do banco e executar os testes.

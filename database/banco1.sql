@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS integracao_governo (
     INDEX idx_integracao_situacao_data (situacao, solicitada_em),
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     animal_id BIGINT NOT NULL,
-    vacina_id BIGINT,
+    vacina_id BIGINT UNIQUE,
     tipo_operacao VARCHAR(25) NOT NULL,
     chave_idempotencia VARCHAR(64) UNIQUE NOT NULL,
     protocolo_externo VARCHAR(100),
