@@ -1,0 +1,47 @@
+# Roteiro da apresentação final — Clínica Veterinária SDM
+
+**Sugestão:** 7 slides, aproximadamente 6–9 minutos (ajustar ao tempo estipulado pelo professor).
+
+## Slide 1 — Identificação
+**Título:** Clínica Veterinária SDM — Milestone 5: entrega final  
+Conteúdo: equipe, disciplina, instituição e data.  
+**Fala:** "Apresentaremos o sistema desenvolvido, sua arquitetura, os fluxos principais e os testes realizados."
+
+## Slide 2 — Problema e objetivo
+Conteúdo: organização de tutores/animais, agendamento, registros clínicos, vacinas e integração governamental.  
+**Fala:** "O objetivo é concentrar os cadastros e os registros clínicos em uma aplicação com validações e rastreabilidade."
+
+## Slide 3 — Arquitetura
+Conteúdo: frontend web → API da clínica (FastAPI) → MySQL; API da clínica ↔ API do governo simulado → SQLite; consulta CEP → ViaCEP.  
+**Fala:** "Separamos o sistema clínico da simulação governamental para exercitar integração e recuperação de falhas."
+
+## Slide 4 — Demonstração funcional
+Conteúdo: login → tutores/CEP → animal/RFID → consulta/vacina → ficha/histórico.  
+**Fala:** "Mostraremos o fluxo de atendimento com dados fictícios."
+
+## Slide 5 — Integração governamental
+Conteúdo: envio de vacinação antirrábica, status de pendência, protocolo de confirmação e reenvio sem duplicidade.  
+**Fala:** "A integração registra respostas e permite demonstrar contingência quando o governo simulado está indisponível."
+
+## Slide 6 — Validação e problemas resolvidos
+Conteúdo: testes manuais concluídos; suítes `tests.entrega2`, `tests.entrega3` e `tests.entrega4` com OK; Playwright `tests.demo_web` e `tests.demo4_web` sem erros, conforme relato; correção das portas e isolamento do banco de testes.  
+**Fala:** "A falha inicial de integração veio da execução da API da clínica na porta destinada ao governo; a divergência do login nos testes veio do uso de bancos diferentes. Corrigimos a configuração e repetimos os testes."  
+**Nota:** mostrar log real e não inventar quantidade de testes.
+
+## Slide 7 — Conclusão
+Conteúdo: objetivos alcançados no ambiente de teste; documentação e evidências; limites: ambiente local, testes sem carga ou auditoria de produção.  
+**Fala:** "A entrega demonstra o funcionamento integrado das funcionalidades e o processo de validação aplicado durante a etapa final."
+
+## Demonstração ao vivo — ordem recomendada
+1. Confirmar os dois serviços em `/health` antes de iniciar.
+2. Fazer login usando a conta de demonstração.
+3. Mostrar tutor e animal já cadastrados (evita depender de digitação ao vivo).
+4. Mostrar histórico de consulta/vacina.
+5. Mostrar confirmação governamental/protocolo; manter screenshots de contingência como plano B.
+
+## Perguntas prováveis
+- **Por que dois bancos?** MySQL armazena a clínica; SQLite mantém o estado do governo simulado.
+- **Como tratam falhas de conexão?** Registro de pendências e reenvio conforme fluxo da Milestone 4.
+- **Como evitar duplicidade?** Idempotência na comunicação governamental.
+- **Por que banco separado de testes?** Para não alterar a base de demonstração durante testes que gravam registros.
+- **O que foi corrigido na Milestone 5?** Inicialização das APIs nas portas corretas e alinhamento do banco usado pela API e pelos testes.
