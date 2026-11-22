@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .auth import sessao
 from .db import database, query, write
 from .cadastros import Pessoa, Endereco
+from .integracao import snapshot_animal, nova_operacao, enviar
 
 router = APIRouter(prefix="/clinica", dependencies=[Depends(sessao)])
 
@@ -87,13 +88,14 @@ def ensure_animal(db, animal_id):
     if not query(db, "SELECT id FROM animal WHERE id = %s AND situacao = 'ATIVO'", (animal_id,)):
         raise HTTPException(404, "Animal não encontrado ou inativo")
 
-def insert_clinical(db, table, model, extra):
+def insert_clinical(db, table, model, extra, commit=True):
     values = model.model_dump()
     values.update(extra)
     fields = ", ".join(values)
     placeholders = ", ".join(["%s"] * len(values))
     registro_id, _ = write(db, f"INSERT INTO {table} ({fields}) VALUES ({placeholders})", tuple(values.values()))
-    db.commit()
+    if commit:
+        db.commit()
     return registro_id
 
 @router.post("/consultas", status_code=201)
@@ -105,7 +107,21 @@ def criar_consulta(dados: Consulta, db=Depends(database), vet=Depends(sessao)):
 @router.post("/vacinas", status_code=201)
 def criar_vacina(dados: Vacina, db=Depends(database), vet=Depends(sessao)):
     ensure_animal(db, dados.animal_id)
-    registro_id = insert_clinical(db, "vacina", dados, {"veterinario_id": vet["id"]})
+    registro_id = insert_clinical(db, "vacina", dados, {"veterinario_id": vet["id"]}, commit=False)
+    operacao_id = None
+    if dados.antirrabica and dados.situacao == "APLICADA":
+        animal = snapshot_animal(db, dados.animal_id)
+        responsavel = query(db, "SELECT nome_completo, numero_crmv, uf_crmv FROM veterinario WHERE id=%s", (vet["id"],))[0]
+        payload = {
+            "animal": animal, "vacina_id": registro_id, "nome_vacina": dados.nome_vacina,
+            "antirrabica": True, "fabricante": dados.fabricante, "numero_lote": dados.numero_lote,
+            "data_aplicacao": dados.data_aplicacao,
+            "veterinario": f"{responsavel['nome_completo']} / {responsavel['numero_crmv']}-{responsavel['uf_crmv']}",
+        }
+        operacao_id = nova_operacao(db, dados.animal_id, "VACINA_ANTIRRABICA", payload, registro_id)
+    db.commit()
+    if operacao_id:
+        enviar(db, operacao_id)
     return query(db, "SELECT z.*, v.nome_completo AS veterinario_nome FROM vacina z JOIN veterinario v ON v.id = z.veterinario_id WHERE z.id = %s", (registro_id,))[0]
 
 @router.get("/animais/{animal_id}/historico")

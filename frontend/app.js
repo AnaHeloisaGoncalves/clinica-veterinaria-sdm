@@ -457,7 +457,7 @@ function clinica() {
       form.elements.situacao.dispatchEvent(new Event("change"));
       avisar(
         (nome === "consulta" ? "Consulta" : "Vacina") +
-          " registrada. Abra a ficha do animal para conferir.",
+          " registrada. Abra a ficha do animal para conferir o histórico e a integração.",
       );
     });
   }
@@ -502,6 +502,7 @@ async function ficha(id) {
   try {
     const h = await api("/clinica/animais/" + id + "/historico");
     const animal = dados.animais.find((a) => a.id == id);
+    const integracoes = await api("/clinica/integracoes?animal_id=" + id);
     estrutura(
       "Ficha de " + escapar(animal.nome),
       '<section class="card"><p>RFID: <strong>' +
@@ -514,6 +515,14 @@ async function ficha(id) {
           data_nascimento: "Nascimento",
           idade_estimada_meses: "Idade estimada (meses)",
         }) +
+        '</section><section class="card"><h2>Integração governamental simulada</h2>' +
+        '<button id="sincronizar">Sincronizar cadastro do animal</button>' +
+        (integracoes.map((op) => '<article><p>' + escapar(op.tipo_operacao) + ' · ' +
+          escapar(op.situacao) + ' · Tentativas: ' + op.quantidade_tentativas + '</p><p>Protocolo: ' +
+          escapar(op.protocolo_externo || 'Aguardando confirmação') + '</p><p>' +
+          escapar(op.mensagem_erro || '') + '</p>' + (op.situacao !== 'CONFIRMADA' ?
+          '<button data-reenviar="' + op.id + '">Reenviar comunicação</button>' : '') + '</article>').join('') ||
+          '<p>Nenhuma comunicação registrada.</p>') +
         '</section><section class="card"><h2>Próximas doses e agendamentos</h2><p class="muted">Previsões registradas; confira no histórico se já houve nova aplicação.</p>' +
         (h.proximas_doses
           .map(
@@ -576,6 +585,28 @@ async function ficha(id) {
           .join("") || "<p>Nenhuma vacina registrada.</p>") +
         "</section></div>",
     );
+    document.querySelector("#sincronizar").onclick = async (event) => {
+      event.currentTarget.disabled = true;
+      try {
+        await api("/clinica/animais/" + id + "/sincronizar", "POST");
+        await ficha(id);
+      } catch (erro) {
+        avisar(erro.message, true);
+        document.querySelector("#sincronizar").disabled = false;
+      }
+    };
+    document.querySelectorAll("[data-reenviar]").forEach((button) => {
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          await api("/clinica/integracoes/" + button.dataset.reenviar + "/reenviar", "POST");
+          await ficha(id);
+        } catch (erro) {
+          avisar(erro.message, true);
+          button.disabled = false;
+        }
+      };
+    });
   } catch (erro) {
     avisar(erro.message, true);
   }
