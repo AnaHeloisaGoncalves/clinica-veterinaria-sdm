@@ -139,3 +139,5 @@ A clínica comunica aplicações antirrábicas ao governo simulado e mostra pend
 ## Milestone 5 — entrega final
 
 A documentação está em **[docs/etapa5](docs/etapa5/README.md)**, incluindo o [relatório](docs/etapa5/relatorio_final.md), a [matriz de 16 cenários](docs/etapa5/matriz_testes.md), oito capturas de tela e o log de **11 testes automatizados aprovados em 8,102 segundos**.
+
+A revalidação de 25/11/2026 está em [revalidacao_unittest.txt](docs/etapa5/evidencias/revalidacao_unittest.txt). Os fluxos de navegador têm logs próprios em [demo_web.txt](docs/etapa5/evidencias/demo_web.txt) e [demo4_web.txt](docs/etapa5/evidencias/demo4_web.txt). A identificação da equipe e o roteiro da demonstração estão na documentação da Etapa 5.

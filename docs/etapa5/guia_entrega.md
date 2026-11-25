@@ -1,7 +1,7 @@
 # Guia de finalização e entrega no GitHub
 
 ## 1. Conferir evidências (sem repetir testes apenas por fotos)
-No VS Code, abra a pasta `docs/evidencias/` existente no projeto. Consulte as capturas que os scripts Playwright geraram. Acrescente em `docs/etapa5/evidencias/` apenas os registros relevantes, com dados fictícios. Adicione o log final real `unittest.txt` quando disponível. Não fabrique resultados ou números.
+No VS Code, abra a pasta `docs/evidencias/` existente no projeto. Consulte as capturas que os scripts Playwright geraram. Acrescente em `docs/etapa5/evidencias/` apenas os registros relevantes, com dados fictícios. O log original está em `testes_automatizados.txt`. A revalidação está em `revalidacao_unittest.txt`, e os fluxos web estão em `demo_web.txt` e `demo4_web.txt`. Não fabrique resultados ou números.
 
 Para registrar uma nova execução, se realmente necessário, **somente com ambiente descartável confirmado**, execute no terminal com `DB_NAME=clinica_vet_testes`:
 
@@ -44,10 +44,10 @@ Para não sobrescrever trabalho do grupo, recomendação simples:
 Se você ainda não tiver acesso de escrita ao repositório do grupo, envie o pacote a um integrante responsável pela publicação ou solicite inclusão como colaborador. Não publique cópias com segredos.
 
 ## 5. Checklist final
-- [ ] Logs e capturas reais anexados.
+- [x] Logs da suíte e dos dois fluxos Chromium anexados.
 - [ ] Relatório revisado pelo grupo; nenhuma contagem inventada.
-- [ ] Nomes e responsabilidades dos integrantes preenchidos na apresentação.
-- [ ] Links para documentação incluídos no README principal.
+- [x] Nomes e RAs dos integrantes preenchidos na apresentação. A divisão de falas deve ser combinada pela equipe.
+- [x] Links para documentação incluídos no README principal.
 - [ ] Ambiente principal restaurado após os testes.
 - [ ] Arquivos enviados ao GitHub compartilhado e conferidos.
 - [ ] Demonstração ensaiada antes da data de entrega.

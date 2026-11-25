@@ -1,47 +1,56 @@
 # Roteiro da apresentação final — Clínica Veterinária SDM
 
-**Sugestão:** 7 slides, aproximadamente 6–9 minutos (ajustar ao tempo estipulado pelo professor).
+Entrega em 26/11/2026. A apresentação tem sete slides. A instituição, o professor e a duração devem ser confirmados pela equipe antes da apresentação.
 
-## Slide 1 — Identificação
-**Título:** Clínica Veterinária SDM — Milestone 5: entrega final  
-Conteúdo: equipe, disciplina, instituição e data.  
-**Fala:** "Apresentaremos o sistema desenvolvido, sua arquitetura, os fluxos principais e os testes realizados."
+## Integrantes
 
-## Slide 2 — Problema e objetivo
-Conteúdo: organização de tutores/animais, agendamento, registros clínicos, vacinas e integração governamental.  
-**Fala:** "O objetivo é concentrar os cadastros e os registros clínicos em uma aplicação com validações e rastreabilidade."
+- Ana Heloísa Henrique Gonçalves — RA 12625122852
+- Lucas de Carvalho Pereira — RA 12625119694
+- Luiz Felipe Nunes dos Santos — RA 12626126986
+- João Manuel Fernandes de Geus — RA 1262316776
 
-## Slide 3 — Arquitetura
-Conteúdo: frontend web → API da clínica (FastAPI) → MySQL; API da clínica ↔ API do governo simulado → SQLite; consulta CEP → ViaCEP.  
-**Fala:** "Separamos o sistema clínico da simulação governamental para exercitar integração e recuperação de falhas."
+## Slides e falas sugeridas
 
-## Slide 4 — Demonstração funcional
-Conteúdo: login → tutores/CEP → animal/RFID → consulta/vacina → ficha/histórico.  
-**Fala:** "Mostraremos o fluxo de atendimento com dados fictícios."
+1. **Clínica Veterinária.** Apresentar a equipe e o objetivo do projeto A3 de Sistemas Distribuídos e Mobile.
+2. **Fluxo de atendimento.** Explicar o cadastro de tutor e endereço, vínculo de animal com RFID, consulta e vacinação.
+3. **Arquitetura da solução.** Mostrar frontend, API privada, MySQL, ViaCEP e API governamental simulada com SQLite separado.
+4. **Ficha e histórico clínico.** Mostrar o animal e os procedimentos com veterinário responsável e próxima dose.
+5. **Indisponibilidade e reenvio.** Demonstrar a vacinação salva localmente durante uma falha externa, a pendência e a confirmação após o reenvio.
+6. **Idempotência e rastreabilidade.** Explicar a chave reutilizada, o protocolo original e o teste de resposta perdida após a gravação externa.
+7. **Resultados dos testes.** Mostrar a matriz dos 16 cenários, os 11 métodos aprovados e os logs dos dois fluxos no navegador.
 
-## Slide 5 — Integração governamental
-Conteúdo: envio de vacinação antirrábica, status de pendência, protocolo de confirmação e reenvio sem duplicidade.  
-**Fala:** "A integração registra respostas e permite demonstrar contingência quando o governo simulado está indisponível."
+## Preparar a demonstração
 
-## Slide 6 — Validação e problemas resolvidos
-Conteúdo: testes manuais concluídos; suítes `tests.entrega2`, `tests.entrega3` e `tests.entrega4` com OK; Playwright `tests.demo_web` e `tests.demo4_web` sem erros, conforme relato; correção das portas e isolamento do banco de testes.  
-**Fala:** "A falha inicial de integração veio da execução da API da clínica na porta destinada ao governo; a divergência do login nos testes veio do uso de bancos diferentes. Corrigimos a configuração e repetimos os testes."  
-**Nota:** mostrar log real e não inventar quantidade de testes.
+Use apenas dados fictícios em ambiente de demonstração. Configure os dois serviços e os bancos conforme o README e docs/milestone-4.md. Antes de começar, confirme /health da clínica na porta 8000 e /health do governo na porta 8001. Entre na interface com a conta de demonstração. Deixe um tutor e um animal com RFID preparados.
 
-## Slide 7 — Conclusão
-Conteúdo: objetivos alcançados no ambiente de teste; documentação e evidências; limites: ambiente local, testes sem carga ou auditoria de produção.  
-**Fala:** "A entrega demonstra o funcionamento integrado das funcionalidades e o processo de validação aplicado durante a etapa final."
+Abra o Swagger do governo em http://127.0.0.1:8001/docs e preencha X-API-Key com a chave do ambiente local ao executar a rota de simulação. Mantenha a senha e a chave fora do compartilhamento de tela.
 
-## Demonstração ao vivo — ordem recomendada
-1. Confirmar os dois serviços em `/health` antes de iniciar.
-2. Fazer login usando a conta de demonstração.
-3. Mostrar tutor e animal já cadastrados (evita depender de digitação ao vivo).
-4. Mostrar histórico de consulta/vacina.
-5. Mostrar confirmação governamental/protocolo; manter screenshots de contingência como plano B.
+## Demonstração ao vivo
 
-## Perguntas prováveis
-- **Por que dois bancos?** MySQL armazena a clínica; SQLite mantém o estado do governo simulado.
-- **Como tratam falhas de conexão?** Registro de pendências e reenvio conforme fluxo da Milestone 4.
-- **Como evitar duplicidade?** Idempotência na comunicação governamental.
-- **Por que banco separado de testes?** Para não alterar a base de demonstração durante testes que gravam registros.
-- **O que foi corrigido na Milestone 5?** Inicialização das APIs nas portas corretas e alinhamento do banco usado pela API e pelos testes.
+1. Na clínica, abra a ficha do animal e mostre o histórico.
+2. No Swagger governamental, execute PUT /api/governo/simulacao com o corpo {"indisponivel": true}.
+3. Na clínica, abra Atendimento e registre uma vacina antirrábica APLICADA para o animal. Preencha os dados obrigatórios, incluindo fabricante, lote, via, dose/etapa, validade e data de aplicação.
+4. Abra novamente a ficha. Mostre a vacina no histórico e a operação VACINA_ANTIRRABICA como PENDENTE, com tentativa e mensagem de indisponibilidade.
+5. No Swagger, execute a mesma rota de simulação com {"indisponivel": false}.
+6. Na ficha, clique em Reenviar comunicação. Mostre a mudança para CONFIRMADA e o protocolo retornado.
+7. No Swagger da clínica, autenticado com token, consulte GET /clinica/animais/{id}/governo. Mostre a aplicação externa.
+8. Execute POST /clinica/integracoes/{id}/reenviar para a integração já confirmada. Consulte o animal externo novamente e confira que o número de vacinações e o protocolo permaneceram iguais.
+9. Abra a matriz de testes e os logs para mostrar as verificações de senha incorreta, CPF/RFID duplicados e ausência de envio obrigatório para vacinas de outros tipos.
+
+Para retomar a demonstração, use um novo registro de vacinação, pois uma comunicação já confirmada mantém o protocolo original. Ao finalizar, deixe a simulação em indisponivel=false.
+
+## Evidências de contingência
+
+Se o ViaCEP estiver indisponível, mostre o preenchimento manual e a captura da consulta realizada durante o teste. As capturas m4-pendente.png e m4-confirmada.png documentam o fluxo de integração. Os logs demo_web.txt, demo4_web.txt e revalidacao_unittest.txt registram a reexecução de 25/11/2026.
+
+## Perguntas e respostas
+
+**Por que dois bancos?** A clínica e o governo simulado têm persistência própria e se comunicam por HTTP.
+
+**O que ocorre quando o governo cai?** A aplicação local e a pendência já estão gravadas. Um reenvio manual retoma a comunicação.
+
+**Como evitar duplicidade?** O governo grava o efeito e o resultado com a chave de idempotência na mesma transação e retorna o protocolo original em repetições.
+
+**O que os testes comprovam?** Os 16 cenários de aceitação estão associados às asserções de 11 métodos de teste. Os dois fluxos Chromium registram atendimento e recuperação da pendência na interface.
+
+**Quais limites foram documentados?** Governo acadêmico simulado, reenvio manual, teste de tela móvel emulado e previsões de próximas doses sem baixa automática.

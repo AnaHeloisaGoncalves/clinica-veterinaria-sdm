@@ -19,7 +19,7 @@
 | CT-10 | Registro de vacina e consulta às próximas doses. | `test_fluxo_clinico_e_rfid` e `test_campos_clinicos_obrigatorios`; [histórico e doses](evidencias/05-historicos.png); [log](evidencias/testes_automatizados.txt) | Aprovado |
 | CT-11 | Cadastro e atualização de animal na API governamental simulada. | `test_sincronizacao_cadastro_atualizacao`; [log](evidencias/testes_automatizados.txt); [detalhes M4](../evidencias-milestone-4.md) | Aprovado |
 | CT-12 | Envio obrigatório de vacina antirrábica. | `test_integracao_falha_reenvio_idempotencia` e `test_rejeicao_corrigida_e_vacinas_sem_comunicacao`; [log](evidencias/testes_automatizados.txt); [confirmação](evidencias/m4-confirmada.png) | Aprovado |
-| CT-13 | Ausência de comunicação obrigatória para vacina não antirrábica. | `test_rejeicao_corrigida_e_vacinas_sem_comunicacao`; [log](evidencias/testes_automatizados.txt) | Aprovado |
+| CT-13 | Ausência de comunicação obrigatória para vacina não antirrábica. | `test_integracao_falha_reenvio_idempotencia`; [log](evidencias/testes_automatizados.txt) | Aprovado |
 | CT-14 | Indisponibilidade da API governamental e registro de pendência. | `test_integracao_falha_reenvio_idempotencia`; [pendência](evidencias/m4-pendente.png); [log](evidencias/testes_automatizados.txt) | Aprovado |
 | CT-15 | Reenvio de comunicação pendente e confirmação posterior. | `test_integracao_falha_reenvio_idempotencia`; [pendente](evidencias/m4-pendente.png); [confirmada](evidencias/m4-confirmada.png); [log](evidencias/testes_automatizados.txt) | Aprovado |
 | CT-16 | Repetição de solicitação sem duplicidade de vacinação no serviço externo. | `test_integracao_falha_reenvio_idempotencia`; [log](evidencias/testes_automatizados.txt); [detalhes de idempotência M4](../evidencias-milestone-4.md) | Aprovado |
@@ -32,3 +32,8 @@
 - Integração: [pendente](evidencias/m4-pendente.png) e [confirmada](evidencias/m4-confirmada.png).
 
 **Critério de leitura:** as linhas aprovadas correspondem à suíte de testes executada e às evidências registradas. As imagens comprovam estados da interface; bloqueios, validações e idempotência são demonstrados sobretudo pelas asserções automatizadas.
+
+## Revalidação em 25/11/2026
+
+A equipe preservou o log original de 22/11. A nova execução tem log próprio em [revalidacao_unittest.txt](evidencias/revalidacao_unittest.txt).
+Os fluxos Chromium têm saída registrada em [demo_web.txt](evidencias/demo_web.txt) e [demo4_web.txt](evidencias/demo4_web.txt). Os dados usados foram fictícios, em bancos descartáveis de MySQL e SQLite.
