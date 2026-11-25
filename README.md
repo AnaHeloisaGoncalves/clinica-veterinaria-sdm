@@ -135,3 +135,7 @@ em [Testes da Milestone 3](docs/evidencias-milestone-3.md).
 ## Milestone 4
 
 A clínica comunica aplicações antirrábicas ao governo simulado e mostra pendências e protocolos na ficha do animal. Siga a [configuração e demonstração da Milestone 4](docs/milestone-4.md) para configurar a chave compartilhada, aplicar a atualização do banco e executar os testes.
+
+## Milestone 5 — entrega final
+
+A documentação está em **[docs/etapa5](docs/etapa5/README.md)**, incluindo o [relatório](docs/etapa5/relatorio_final.md), a [matriz de 16 cenários](docs/etapa5/matriz_testes.md), oito capturas de tela e o log de **11 testes automatizados aprovados em 8,102 segundos**.

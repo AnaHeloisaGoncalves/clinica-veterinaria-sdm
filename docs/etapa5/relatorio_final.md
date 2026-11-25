@@ -47,13 +47,13 @@ Os segredos ficam no `.env` local e **não devem ser publicados**.
 | M-06 | Registro de vacina | Aprovado | Teste manual |
 | M-07 | Ficha e histórico | Aprovado | Teste manual |
 | M-08 | Integração governamental | Aprovado após ajuste de inicialização | Sucesso/protocolo relatado |
-| A-01 | `tests.entrega2` | OK relatado | Reexecução após corrigir banco usado pela API |
-| A-02 | `tests.entrega3` | OK relatado | Suíte integrada |
-| A-03 | `tests.entrega4` | OK relatado | Suíte integrada |
-| W-01 | `tests.demo_web` | Sem erros relatados | Evidências devem ser anexadas |
-| W-02 | `tests.demo4_web` | Sem erros relatados | Evidências devem ser anexadas |
+| A-01 | `tests.entrega2` | Aprovado no log | `test_autenticacao_e_cadastros ... ok` |
+| A-02 | `tests.entrega3` | Aprovado no log | 7 casos de `tests.entrega3` com `ok` |
+| A-03 | `tests.entrega4` | Aprovado no log | 3 casos de `tests.entrega4` com `ok` |
+| W-01 | `tests.demo_web` | Sem erros relatados | Capturas `01-painel.png` a `06-celular.png` anexadas |
+| W-02 | `tests.demo4_web` | Sem erros relatados | Capturas `m4-pendente.png` e `m4-confirmada.png` anexadas |
 
-**Limitação da evidência:** o executor confirmou aprovação, mas não forneceu o resumo completo da suíte nem os prints finais. Portanto, este relatório não declara uma quantidade total de testes automatizados nem atribui verificação independente aos resultados relatados.
+**Evidência publicada:** o arquivo [testes_automatizados.txt](evidencias/testes_automatizados.txt) comprova **11 testes aprovados em 8,102 segundos**, resultado `OK`. As oito capturas do Playwright estão anexadas em [evidencias/](evidencias/). Os testes web foram relatados como concluídos sem erros; seus logs específicos não estão nesta pasta.
 
 ## 6. Incidentes, diagnóstico e solução
 ### INC-01 — Erro 401 durante consulta governamental
@@ -80,13 +80,13 @@ Foi exibido `StarletteDeprecationWarning` envolvendo `httpx` e `starlette.testcl
 Os testes foram direcionados ao banco descartável `clinica_vet_testes`. O banco de demonstração `clinica_vet` foi mantido separado. Não registrar no repositório: `.env`, credenciais, tokens, arquivos SQLite com informações sensíveis, ambiente virtual ou capturas com dados pessoais.
 
 ## 8. Limitações e riscos remanescentes
-- Logs completos e evidências visuais precisam ser arquivados para auditoria da entrega.
+- O log completo de `unittest` e as oito capturas já estão arquivados em [evidencias/](evidencias/). Não estão anexados logs próprios dos dois scripts Playwright.
 - Os testes relatados foram realizados em ambiente local, não equivalendo à homologação de produção.
 - A aplicação utiliza serviços externos, como ViaCEP, cuja disponibilidade pode variar.
 - Não foi realizada nesta etapa auditoria formal de segurança, desempenho sob carga ou acessibilidade.
 
 ## 9. Conclusão
-Com base nos resultados relatados pelo executor em 22/11/2026, os fluxos principais e as suítes automatizadas das Milestones 2, 3 e 4 passaram após correções de configuração do ambiente. A Milestone 5 reúne a validação funcional, integração, testes web, registro de incidentes e documentação. A conclusão documental depende de anexar os logs e capturas reais e de enviar os arquivos ao repositório compartilhado.
+Com base nos resultados relatados pelo executor em 22/11/2026, os fluxos principais e as suítes automatizadas das Milestones 2, 3 e 4 passaram após correções de configuração do ambiente. A Milestone 5 reúne a validação funcional, integração, testes web, registro de incidentes e documentação. O log de 11 testes aprovados em 8,102 segundos e as oito capturas foram anexados ao repositório. A [matriz de 16 cenários](matriz_testes.md) relaciona os requisitos documentados aos testes e evidências.
 
 ## Evidências dos Testes — Milestone 5
 
@@ -144,8 +144,8 @@ As imagens a seguir documentam os testes visuais realizados com Playwright no Si
 
 ## Resultado dos testes
 
-- Testes automatizados das Milestones 2, 3 e 4: **Aprovados**, conforme execução informada.
+- Testes automatizados das Milestones 2, 3 e 4: **11 aprovados em 8,102 segundos**, conforme [log publicado](evidencias/testes_automatizados.txt).
 - Testes visuais `tests.demo_web` e `tests.demo4_web`: **Concluídos sem erros**, conforme execução informada.
 - Integração governamental: **Funcionando após correção da configuração dos servidores**.
 
-As evidências acima devem corresponder às capturas reais geradas durante os testes. Os resultados completos encontram-se nos registros disponíveis na pasta `evidencias`.
+As oito capturas estão anexadas em [evidencias/](evidencias/). O log detalhado está em [testes_automatizados.txt](evidencias/testes_automatizados.txt) e o resumo manual em [testes_manuais_resumo.txt](evidencias/testes_manuais_resumo.txt). Veja também a [matriz de 16 cenários](matriz_testes.md).
