@@ -150,6 +150,15 @@ button:disabled {
   max-width: 440px;
   margin: 8vh auto;
 }
+.campo-senha {
+  display: grid;
+  gap: 6px;
+}
+.alternar-senha {
+  justify-self: start;
+  font-size: 0.85rem;
+  padding: 7px 10px;
+}
 .checkbox {
   display: flex;
   align-items: center;

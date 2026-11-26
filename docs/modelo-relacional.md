@@ -1,5 +1,10 @@
 # Milestone 1 — DER e modelo relacional
 
+> Proposta histórica. A implementação atual usa MySQL 8 em `database/banco1.sql`.
+> Consulte a seção 6 da [revisão A3](requisitos-a3-revisados.md) para o modelo efetivo,
+> as restrições e o relacionamento composto de raça/espécie. O DER abaixo continua
+> representando as dez entidades obrigatórias; os tipos PostgreSQL são históricos.
+
 **A3 de Sistemas Distribuídos e Mobile · Sistema de Gestão de Clínica Veterinária**
 
 Este modelo cobre as dez entidades obrigatórias da API privada da clínica. O esquema usa tipos PostgreSQL e serve de referência para os modelos Python e as migrações da Milestone 2. A API governamental simulada tem persistência separada e recebe dados por HTTP, sem chaves estrangeiras entre bancos.

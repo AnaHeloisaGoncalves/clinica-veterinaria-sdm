@@ -1,5 +1,15 @@
 # Clínica Veterinária · A3 de SDM
 
+## Revisão local dos requisitos A3 — 25/11/2026
+
+Veja a [matriz por tópico do PDF](docs/requisitos-a3-revisados.md), com as exigências,
+implementação, modelo MySQL atual e instruções de teste. Esta revisão inclui edição
+e inativação de tutores, manutenção de veterinários/catálogos, confirmação de senha
+na tela e substituição de microchip com histórico. Testes isolados:
+`.venv/bin/python -m scripts.testes_isolados` (dependências de desenvolvimento e
+Chromium do Playwright necessários). No Mac configurado, abra `iniciar-mac.command`
+e mantenha a janela do Terminal aberta durante a demonstração.
+
 A API privada usa Python 3.14, FastAPI, Pydantic, Uvicorn e MySQL 8. O MySQL aplica as restrições do modelo, como CPF e RFID únicos. A API usa MySQL Connector/Python para executar consultas parametrizadas. Os scripts SQL ficam no diretório database.
 
 A [documentação da Milestone 1](docs/milestone-1.md) descreve os requisitos e a arquitetura. O [modelo relacional](docs/modelo-relacional.md) registra o desenho original em PostgreSQL. A implementação da Milestone 2 usa MySQL e mantém o modelo como referência.
@@ -50,6 +60,8 @@ Abra o [Swagger da clínica](http://127.0.0.1:8000/docs). Envie o código em `PO
 
 As rotas privadas cobrem endereços, tutores, animais, espécies, raças e veterinários. Para cadastrar um animal, cadastre antes as entidades referenciadas e informe o RFID no cadastro. Somente um administrador pode criar, atualizar ou inativar veterinários. O terminal da API exibe o código de confirmação como simulação do envio por e-mail para novos veterinários. O [governo simulado](http://127.0.0.1:8001/docs) mantém sua rota de saúde.
 
+Na tela de login, o botão **Criar minha conta de veterinário** permite o cadastro público do profissional (nome, CPF, e-mail, CRMV e senha). A conta é gravada diretamente no MySQL com senha protegida por scrypt, fica ativa e confirmada para o primeiro acesso e nunca recebe privilégios de administrador. Não há envio de e-mail nesse fluxo. Os campos de senha possuem o botão **Mostrar senha/Ocultar senha**.
+
 ## Testes da Milestone 2
 
 Em um banco descartável com o esquema aplicado, deixe a API da clínica rodando com a mesma configuração de banco e execute em outro terminal:
@@ -87,11 +99,26 @@ padrão fica restrita ao próprio computador.
 Após criar o banco, inclua `DEMO_PASSWORD` no .env com uma senha de pelo menos 12
 caracteres e execute `python -m scripts.demo` usando o Python da .venv.
 O script cria o veterinário `demo@example.test`, já confirmado para a demonstração,
-e os catálogos Cão/Labrador e Gato/Siamês. Não apaga nem redefine cadastros existentes.
+e os catálogos de cães e gatos com 40 e 20 opções de raça, respectivamente,
+incluindo a opção de cadastro Sem raça definida (SRD). Não apaga nem redefine cadastros existentes.
+Para carregar apenas esses catálogos, sem criar a conta demo, execute
+`.venv/bin/python -m scripts.catalogos` no macOS. A carga pode ser repetida sem
+duplicar os nomes já cadastrados e preserva registros inativos.
+
+O catálogo também inclui animais domésticos, silvestres e exóticos, como coelhos,
+roedores, furões, aves, quelônios, lagartos e serpentes. Os nomes são opções de
+identificação no cadastro clínico; nomes comuns abrangentes devem ser detalhados
+na ficha. Para espécies sem catálogo de raças, deixe o campo opcional de raça vazio.
 Use somente um banco local de demonstração. Para contas normais, siga o fluxo de
 criação e confirmação da Milestone 2.
 
 O fluxo demonstrativo é: login → Tutores → consulte `01001000` → complete número/complemento e cadastre → Animais → selecione tutor/espécie/raça opcional e informe RFID → Atendimento → registre consulta e vacina → Animais → **Ficha de [nome]**.
+
+Para atualizar um animal, acesse **Animais → Editar [nome]**, altere os dados e
+clique em **Salvar alterações**. É possível editar nome, tutor, espécie, raça,
+sexo, cor, peso, nascimento e idade estimada. A troca de espécie limpa a raça
+selecionada e mostra apenas opções compatíveis. O RFID e os históricos são
+preservados. **Cancelar edição** descarta as alterações não salvas.
 
 ### Casos de erro demonstráveis
 

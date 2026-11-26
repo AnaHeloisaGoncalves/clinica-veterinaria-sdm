@@ -1,5 +1,30 @@
 # Relatório técnico final — Milestone 5
 
+## Adendo local — revisão do A3-SDM em 25/11/2026
+
+O PDF de 12 páginas foi revisado e confrontado com o código e o MySQL local no Mac.
+A [matriz por tópico](../requisitos-a3-revisados.md) registra exigências e implementação.
+Foram adicionados edição/inativação de tutores, edição dos catálogos, gestão de
+veterinários, confirmação de senha na interface, metadados de cadastro e troca de
+RFID com histórico e bloqueio transacional. A edição de animais foi preservada.
+
+Resultado desta revisão: **17 testes aprovados em 4,011 segundos**, executados em
+MySQL descartável e governo SQLite separado. [Log atual](evidencias/revisao-a3/testes.txt).
+O executor removeu somente a base de testes que criou; os dados da apresentação
+foram preservados. O aviso de depreciação do TestClient/httpx não impediu os testes.
+
+Capturas desta execução: [tutor](evidencias/revisao-a3/tutor-edicao.png),
+[microchips](evidencias/revisao-a3/microchip-historico.png),
+[profissionais](evidencias/revisao-a3/veterinarios.png) e
+[edição mobile](evidencias/revisao-a3/animal-mobile.png).
+
+Após reiniciar os serviços locais, login, `/me` e saúde do governo retornaram 200;
+as novas rotas apareceram no OpenAPI. Consulta ao ViaCEP real: `01001000` retornou
+200 com Praça da Sé/São Paulo/SP e IBGE 3550308; `00000000` retornou 404 com
+orientação para preenchimento manual. Não foi feita publicação no GitHub.
+
+O restante deste documento é o registro histórico da entrega de 22/11/2026.
+
 **Projeto:** Clínica Veterinária SDM — A3 de SDM  
 **Data:** 22 de novembro de 2026  
 **Entrega prevista:** 26 de novembro de 2026  

@@ -65,6 +65,13 @@ function avisar(texto, erro = false) {
 }
 
 function campo(nome, titulo, tipo = "text", obrigatorio = false, extra = "") {
+  if (tipo === "password") {
+    return (
+      '<div class="campo-senha"><label>' + titulo + '<input name="' + nome + '" type="password" ' +
+      (obrigatorio ? "required " : "") + extra + '></label>' +
+      '<button type="button" class="secondary alternar-senha" aria-pressed="false">Mostrar senha</button></div>'
+    );
+  }
   return (
     "<label>" +
     titulo +
@@ -156,6 +163,7 @@ function estrutura(titulo, conteudo) {
     [
       ["inicio", "Início"],
       ["tutores", "Tutores"],
+      ["veterinarios", "Veterinários"],
       ["animais", "Animais"],
       ["clinica", "Atendimento"],
       ["catalogos", "Espécies e raças"],
@@ -204,7 +212,9 @@ function login(mensagem = "") {
       true,
       'autocomplete="current-password"',
     ) +
-    '<button type="submit">Entrar</button></form></section></div>';
+    '<button type="submit">Entrar</button></form>' +
+    '<p class="muted">Primeiro acesso? <button type="button" class="secondary" id="abrir-cadastro">Criar minha conta de veterinário</button></p></section></div>';
+  document.querySelector("#abrir-cadastro").onclick = cadastrarVeterinario;
   enviarFormulario("login", async (d) => {
     const sessao = await api("/login", "POST", d);
     token = sessao.token_acesso;
@@ -212,6 +222,29 @@ function login(mensagem = "") {
     await navegar("inicio");
   });
 }
+function cadastrarVeterinario() {
+  app.innerHTML = '<div class="container"><section class="card login"><p class="muted">Clínica Veterinária</p><h1>Criar conta de veterinário</h1><div id="aviso" role="status" tabindex="-1"></div><form id="cadastro-veterinario">' +
+    campo("nome_completo", "Nome completo", "text", true) + campo("cpf", "CPF", "text", true) +
+    campo("email", "E-mail", "email", true) + campo("telefone", "Telefone") +
+    campo("numero_crmv", "Número do CRMV", "text", true) + campo("uf_crmv", "UF do CRMV", "text", true, 'maxlength="2"') +
+    campo("senha", "Senha (mínimo de 12 caracteres)", "password", true, 'minlength="12" autocomplete="new-password"') +
+    '<button type="submit">Criar conta</button></form><button type="button" class="secondary" id="voltar-login">Voltar para o login</button></section></div>';
+  document.querySelector("#voltar-login").onclick = () => login();
+  enviarFormulario("cadastro-veterinario", async (dados) => {
+    const resposta = await api("/cadastro-veterinario", "POST", dados);
+    login(resposta.mensagem || "Conta criada com sucesso. Entre com seu e-mail e senha.");
+  });
+}
+
+document.addEventListener("click", (evento) => {
+  const botao = evento.target.closest(".alternar-senha");
+  if (!botao) return;
+  const entrada = botao.parentElement.querySelector('input[type="password"], input[type="text"]');
+  const mostrar = entrada.type === "password";
+  entrada.type = mostrar ? "text" : "password";
+  botao.textContent = mostrar ? "Ocultar senha" : "Mostrar senha";
+  botao.setAttribute("aria-pressed", String(mostrar));
+});
 async function navegar(pagina) {
   if (!token) return login();
   estrutura("Carregando", "<p>Aguarde...</p>");
@@ -219,7 +252,7 @@ async function navegar(pagina) {
     const entidades = ["tutores", "animais", "especies", "racas"];
     const listas = await Promise.all(entidades.map((e) => api("/" + e)));
     entidades.forEach((e, i) => (dados[e] = listas[i]));
-    if (token) ({ inicio, tutores, animais, clinica, catalogos })[pagina]();
+    if (token) await ({ inicio, tutores, animais, clinica, catalogos, veterinarios })[pagina]();
   } catch (erro) {
     avisar(erro.message, true);
   }
@@ -241,10 +274,11 @@ function inicio() {
       '<section class="card"><h2>Atendimento</h2><p>Os registros ficam vinculados ao veterinário conectado.</p></section></div>',
   );
 }
-function tutores() {
+function tutores(tutorEdicao = null, enderecoEdicao = null) {
+  const editando = tutorEdicao !== null;
   estrutura(
     "Tutores",
-    '<section class="card"><h2>Novo tutor</h2><form id="tutor"><div class="grid">' +
+    '<section class="card"><h2>' + (editando ? 'Editar tutor' : 'Novo tutor') + '</h2><form id="tutor"><div class="grid">' +
       campo("nome_completo", "Nome completo", "text", true) +
       campo("cpf", "CPF", "text", true) +
       campo("data_nascimento", "Nascimento", "date", true) +
@@ -266,7 +300,8 @@ function tutores() {
       campo("cidade", "Cidade", "text", true) +
       campo("uf", "UF", "text", true, 'maxlength="2"') +
       campo("codigo_ibge", "Código IBGE (opcional)") +
-      '</div></fieldset><button type="submit">Cadastrar tutor</button></form></section>' +
+      '</div></fieldset><button type="submit">' + (editando ? 'Salvar tutor' : 'Cadastrar tutor') + '</button>' +
+      (editando ? '<button type="button" id="cancelar-tutor">Cancelar edição</button>' : '') + '</form></section>' +
       '<section class="card"><h2>Tutores cadastrados</h2>' +
       (dados.tutores
         .map(
@@ -277,12 +312,31 @@ function tutores() {
             escapar(t.email) +
             " · " +
             escapar(t.situacao) +
-            "</p>",
+            '</p><p>CPF: ' + escapar(t.cpf) + ' · Cadastro: ' + escapar(t.cadastrado_em || '') + '</p>' +
+            '<button data-editar-tutor="' + t.id + '">Consultar / editar ' + escapar(t.nome_completo) + '</button>' +
+            (t.situacao === 'ATIVO' ? '<button data-inativar-tutor="' + t.id + '" class="secondary">Inativar tutor</button>' : ''),
         )
         .join("") || "<p>Nenhum tutor cadastrado.</p>") +
       "</section>",
   );
   const form = document.querySelector("#tutor");
+  if (editando) {
+    const valores = { ...tutorEdicao, ...enderecoEdicao };
+    for (const campo of form.elements) if (campo.name) campo.value = valores[campo.name] ?? "";
+    document.querySelector("#cancelar-tutor").onclick = () => tutores();
+  }
+  document.querySelectorAll("[data-editar-tutor]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const tutor = dados.tutores.find((t) => t.id == b.dataset.editarTutor);
+        const endereco = await api("/enderecos/" + tutor.endereco_id);
+        tutores(tutor, endereco);
+      } catch (erro) { avisar(erro.message, true); }
+    };
+  });
+  document.querySelectorAll("[data-inativar-tutor]").forEach((b) => {
+    b.onclick = () => inativarRegistro("tutores", b.dataset.inativarTutor, "tutores");
+  });
   document.querySelector("#buscar-cep").onclick = async (evento) => {
     const botao = evento.currentTarget;
     const cep = form.elements.cep.value.replace(/\D/g, "");
@@ -303,6 +357,7 @@ function tutores() {
       botao.disabled = false;
     }
   };
+  form.elements.cep.addEventListener("change", () => document.querySelector("#buscar-cep").click());
   enviarFormulario("tutor", async (d) => {
     const endereco = {};
     for (const c of [
@@ -321,19 +376,22 @@ function tutores() {
     endereco.cep = endereco.cep.replace(/\D/g, "");
     endereco.uf = endereco.uf.toUpperCase();
     d.cpf = d.cpf.replace(/\D/g, "");
-    await api("/clinica/tutores", "POST", { ...d, endereco });
+    await api(editando ? "/clinica/tutores/" + tutorEdicao.id : "/clinica/tutores", editando ? "PUT" : "POST", { ...d, endereco });
     await navegar("tutores");
-    avisar("Tutor cadastrado com sucesso.");
+    avisar(editando ? "Tutor atualizado com sucesso." : "Tutor cadastrado com sucesso.");
   });
 }
-function animais() {
+function animais(animalEdicao = null) {
+  const editando = animalEdicao !== null;
+  const opcoesEdicao = (lista, id) =>
+    lista.filter((item) => ativos([item]).length || item.id == id);
   estrutura(
     "Animais",
-    '<section class="card"><h2>Novo animal</h2><form id="animal"><div class="grid">' +
+    '<section class="card"><h2>' + (editando ? 'Editar animal' : 'Novo animal') + '</h2><form id="animal"><div class="grid">' +
       campo("nome", "Nome", "text", true) +
-      campo("codigo_rfid", "Código RFID", "text", true, 'maxlength="48"') +
-      seletor("tutor_id", "Tutor", ativos(dados.tutores)) +
-      seletor("especie_id", "Espécie", ativos(dados.especies)) +
+      (editando ? '' : campo("codigo_rfid", "Código RFID", "text", true, 'maxlength="48"')) +
+      seletor("tutor_id", "Tutor", opcoesEdicao(dados.tutores, animalEdicao?.tutor_id)) +
+      seletor("especie_id", "Espécie", opcoesEdicao(dados.especies, animalEdicao?.especie_id)) +
       seletor("raca_id", "Raça (opcional)", [], true) +
       campo("sexo", "Sexo", "text", true) +
       campo("cor", "Cor", "text", true) +
@@ -352,7 +410,10 @@ function animais() {
         false,
         'min="0" step="1"',
       ) +
-      '</div><p class="muted">Informe o nascimento ou a idade estimada. O RFID precisa ser único.</p><button type="submit">Cadastrar animal</button></form></section>' +
+      '</div><p class="muted">Informe o nascimento ou a idade estimada. ' +
+      (editando ? 'O RFID e os históricos serão preservados.' : 'O RFID precisa ser único.') +
+      '</p><button type="submit">' + (editando ? 'Salvar alterações' : 'Cadastrar animal') +
+      '</button>' + (editando ? '<button type="button" id="cancelar-edicao" class="secondary">Cancelar edição</button>' : '') + '</form></section>' +
       '<section class="card"><h2>Fichas dos animais</h2>' +
       (dados.animais
         .map(
@@ -365,14 +426,16 @@ function animais() {
             a.id +
             '" class="secondary">Ficha de ' +
             escapar(a.nome) +
-            "</button></div>",
+            '</button><button data-editar-animal="' + a.id +
+            '" class="secondary">Editar ' + escapar(a.nome) + '</button>' +
+            (a.situacao === 'ATIVO' ? '<button data-inativar-animal="' + a.id + '" class="secondary">Inativar animal</button>' : '') + '</div>',
         )
         .join("") || "<p>Nenhum animal cadastrado.</p>") +
       "</section>",
   );
   const form = document.querySelector("#animal");
   form.elements.especie_id.onchange = () => {
-    const racas = ativos(dados.racas).filter(
+    const racas = opcoesEdicao(dados.racas, animalEdicao?.raca_id).filter(
       (r) => r.especie_id == form.elements.especie_id.value,
     );
     form.elements.raca_id.innerHTML =
@@ -384,12 +447,28 @@ function animais() {
         )
         .join("");
   };
+  if (editando) {
+    for (const campo of form.elements) {
+      if (campo.name && campo.name !== "raca_id")
+        campo.value = animalEdicao[campo.name] ?? "";
+    }
+    form.elements.especie_id.onchange();
+    form.elements.raca_id.value = animalEdicao.raca_id ?? "";
+    document.querySelector("#cancelar-edicao").onclick = () => animais();
+    form.elements.nome.focus();
+  }
   enviarFormulario("animal", async (d) => {
     if (d.data_nascimento === null && d.idade_estimada_meses === null)
       throw new Error("Informe o nascimento ou a idade estimada.");
-    await api("/animais", "POST", d);
+    await api(editando ? "/animais/" + animalEdicao.id : "/animais", editando ? "PUT" : "POST", d);
     await navegar("animais");
-    avisar("Animal cadastrado e RFID vinculado.");
+    avisar(editando ? "Dados do animal atualizados com sucesso." : "Animal cadastrado e RFID vinculado.");
+  });
+  document.querySelectorAll("[data-editar-animal]").forEach((b) => {
+    b.onclick = () => animais(dados.animais.find((a) => a.id == b.dataset.editarAnimal));
+  });
+  document.querySelectorAll("[data-inativar-animal]").forEach((b) => {
+    b.onclick = () => inativarRegistro("animais", b.dataset.inativarAnimal, "animais");
   });
   document
     .querySelectorAll("[data-ficha]")
@@ -509,18 +588,27 @@ async function ficha(id) {
         escapar(h.microchip?.codigo_rfid || "Não informado") +
         "</strong></p>" +
         detalhes(animal, {
+          id: "Identificador interno",
+          nome: "Nome",
+          situacao: "Situação",
           sexo: "Sexo",
           cor: "Cor",
           peso_atual_kg: "Peso (kg)",
           data_nascimento: "Nascimento",
           idade_estimada_meses: "Idade estimada (meses)",
         }) +
-        '</section><section class="card"><h2>Integração governamental simulada</h2>' +
+        '<p>Tutor: ' + escapar(dados.tutores.find((t) => t.id == animal.tutor_id)?.nome_completo) +
+        ' · Espécie: ' + escapar(dados.especies.find((e) => e.id == animal.especie_id)?.nome) +
+        ' · Raça: ' + escapar(dados.racas.find((r) => r.id == animal.raca_id)?.nome || 'Não informada') + '</p>' +
+        '</section>' + telaMicrochips(h, animal) + '<section class="card"><h2>Integração governamental simulada</h2>' +
         '<button id="sincronizar">Sincronizar cadastro do animal</button>' +
         (integracoes.map((op) => '<article><p>' + escapar(op.tipo_operacao) + ' · ' +
           escapar(op.situacao) + ' · Tentativas: ' + op.quantidade_tentativas + '</p><p>Protocolo: ' +
           escapar(op.protocolo_externo || 'Aguardando confirmação') + '</p><p>' +
-          escapar(op.mensagem_erro || '') + '</p>' + (op.situacao !== 'CONFIRMADA' ?
+          escapar(op.mensagem_erro || '') + '</p>' + detalhes(op, {
+            id: 'ID da integração', vacina_id: 'Aplicação de vacina', chave_idempotencia: 'Chave de idempotência',
+            solicitada_em: 'Solicitada em', respondida_em: 'Respondida em',
+          }) + (op.situacao !== 'CONFIRMADA' ?
           '<button data-reenviar="' + op.id + '">Reenviar comunicação</button>' : '') + '</article>').join('') ||
           '<p>Nenhuma comunicação registrada.</p>') +
         '</section><section class="card"><h2>Próximas doses e agendamentos</h2><p class="muted">Previsões registradas; confira no histórico se já houve nova aplicação.</p>' +
@@ -585,6 +673,12 @@ async function ficha(id) {
           .join("") || "<p>Nenhuma vacina registrada.</p>") +
         "</section></div>",
     );
+    if (document.querySelector("#substituir-microchip")) enviarFormulario("substituir-microchip", async (d) => {
+      if (!confirm("Substituir o microchip? O vínculo anterior ficará no histórico.")) return;
+      await api("/clinica/animais/" + id + "/microchip", "POST", d);
+      await ficha(id);
+      avisar("Novo microchip vinculado. Histórico anterior preservado. Sincronize o novo cadastro quando necessário.");
+    });
     document.querySelector("#sincronizar").onclick = async (event) => {
       event.currentTarget.disabled = true;
       try {
@@ -618,7 +712,7 @@ function catalogos() {
       campo("nome", "Nome da espécie", "text", true) +
       texto("descricao", "Descrição") +
       '<button type="submit">Cadastrar espécie</button></form>' +
-      dados.especies.map((e) => "<p>" + escapar(e.nome) + "</p>").join("") +
+      dados.especies.map((e) => "<article><h3>" + escapar(e.nome) + "</h3>" + botoesCatalogo('especies', e) + '</article>').join("") +
       '</section><section class="card"><h2>Nova raça</h2><form id="raca">' +
       seletor("especie_id", "Espécie da raça", ativos(dados.especies)) +
       campo("nome", "Nome da raça", "text", true) +
@@ -631,7 +725,7 @@ function catalogos() {
             escapar(r.nome) +
             " · " +
             escapar(dados.especies.find((e) => e.id === r.especie_id)?.nome) +
-            "</p>",
+            "</p>" + botoesCatalogo('racas', r),
         )
         .join("") +
       "</section></div>",
@@ -643,6 +737,12 @@ function catalogos() {
       avisar("Cadastro realizado.");
     });
   }
+  document.querySelectorAll('[data-editar-catalogo]').forEach((b) => {
+    b.onclick = () => editarCatalogo(b.dataset.editarCatalogo, b.dataset.id);
+  });
+  document.querySelectorAll('[data-inativar-catalogo]').forEach((b) => {
+    b.onclick = () => inativarRegistro(b.dataset.inativarCatalogo, b.dataset.id, 'catalogos');
+  });
 }
 if (token) navegar("inicio");
 else login();

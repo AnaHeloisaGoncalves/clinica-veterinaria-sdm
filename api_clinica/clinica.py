@@ -137,8 +137,31 @@ def historico_animal(animal_id: int, db=Depends(database)):
     for dose in proximas:
         dose["prazo"] = "ATRASADA" if dose["data_prevista"] < date.today() else "PREVISTA"
     proximas.sort(key=lambda dose: dose["data_prevista"])
-    microchip = query(db, "SELECT codigo_rfid, vinculado_em FROM vinculo_microchip WHERE animal_id = %s AND encerrado_em IS NULL", (animal_id,))
-    return {"consultas": consultas, "vacinas": vacinas, "proximas_doses": proximas, "microchip": microchip[0] if microchip else None}
+    vinculos = query(db, """SELECT m.id, m.codigo_rfid, m.vinculado_em, m.encerrado_em,
+        m.veterinario_id, v.nome_completo AS veterinario_nome
+        FROM vinculo_microchip m JOIN veterinario v ON v.id=m.veterinario_id
+        WHERE m.animal_id=%s ORDER BY m.id DESC""", (animal_id,))
+    microchip = next((m for m in vinculos if m["encerrado_em"] is None), None)
+    return {"consultas": consultas, "vacinas": vacinas, "proximas_doses": proximas,
+            "microchip": microchip, "vinculos_microchip": vinculos}
+
+
+class Microchip(DadosClinicos):
+    codigo_rfid: str = Field(min_length=1, max_length=48)
+
+
+@router.post("/animais/{animal_id}/microchip", status_code=201)
+def substituir_microchip(animal_id: int, dados: Microchip, db=Depends(database), vet=Depends(sessao)):
+    # Serializa substituições do mesmo animal e mantém encerramento + novo vínculo atômicos.
+    if not query(db, "SELECT id FROM animal WHERE id=%s AND situacao='ATIVO' FOR UPDATE", (animal_id,)):
+        raise HTTPException(404, "Animal não encontrado ou inativo")
+    if query(db, "SELECT id FROM vinculo_microchip WHERE codigo_rfid=%s", (dados.codigo_rfid,)):
+        raise HTTPException(409, "RFID já está em uso ou pertence ao histórico de um animal")
+    write(db, "UPDATE vinculo_microchip SET encerrado_em=CURRENT_TIMESTAMP WHERE animal_id=%s AND encerrado_em IS NULL", (animal_id,))
+    registro_id, _ = write(db, "INSERT INTO vinculo_microchip (animal_id, veterinario_id, codigo_rfid) VALUES (%s,%s,%s)",
+                          (animal_id, vet["id"], dados.codigo_rfid))
+    db.commit()
+    return query(db, "SELECT id, animal_id, veterinario_id, codigo_rfid, vinculado_em, encerrado_em FROM vinculo_microchip WHERE id=%s", (registro_id,))[0]
 
 
 @router.get("/cep/{cep}")
@@ -180,3 +203,17 @@ def cadastrar_tutor(dados: TutorComEndereco, db=Depends(database)):
     tutor_id, _ = write(db, f"INSERT INTO tutor ({campos}) VALUES ({marcadores})", tuple(tutor.values()))
     db.commit()
     return {"id": tutor_id, **tutor}
+
+
+@router.put("/tutores/{tutor_id}")
+def atualizar_tutor(tutor_id: int, dados: TutorComEndereco, db=Depends(database)):
+    if not query(db, "SELECT id FROM tutor WHERE id=%s FOR UPDATE", (tutor_id,)):
+        raise HTTPException(404, "Tutor não encontrado")
+    # Um novo endereço evita modificar outros tutores que compartilhem o anterior.
+    endereco = dados.endereco.model_dump()
+    endereco_id, _ = write(db, f"INSERT INTO endereco ({', '.join(endereco)}) VALUES ({', '.join(['%s'] * len(endereco))})", tuple(endereco.values()))
+    tutor = dados.model_dump(exclude={"endereco"})
+    tutor["endereco_id"] = endereco_id
+    write(db, f"UPDATE tutor SET {', '.join(f'{c}=%s' for c in tutor)} WHERE id=%s", (*tutor.values(), tutor_id))
+    db.commit()
+    return query(db, "SELECT * FROM tutor WHERE id=%s", (tutor_id,))[0]
