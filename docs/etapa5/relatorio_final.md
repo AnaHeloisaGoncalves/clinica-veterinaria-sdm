@@ -50,10 +50,10 @@ Os segredos ficam no `.env` local e **não devem ser publicados**.
 | A-01 | `tests.entrega2` | Aprovado no log | `test_autenticacao_e_cadastros ... ok` |
 | A-02 | `tests.entrega3` | Aprovado no log | 7 casos de `tests.entrega3` com `ok` |
 | A-03 | `tests.entrega4` | Aprovado no log | 3 casos de `tests.entrega4` com `ok` |
-| W-01 | `tests.demo_web` | Sem erros relatados | Capturas `01-painel.png` a `06-celular.png` anexadas |
-| W-02 | `tests.demo4_web` | Sem erros relatados | Capturas `m4-pendente.png` e `m4-confirmada.png` anexadas |
+| W-01 | `tests.demo_web` | Revalidado em 25/11 | Capturas anexadas e log `demo_web.txt` da revalidação |
+| W-02 | `tests.demo4_web` | Revalidado em 25/11 | Capturas anexadas e log `demo4_web.txt` da revalidação |
 
-**Evidência publicada:** o arquivo [testes_automatizados.txt](evidencias/testes_automatizados.txt) comprova **11 testes aprovados em 8,102 segundos**, resultado `OK`. As oito capturas do Playwright estão anexadas em [evidencias/](evidencias/). Os testes web foram relatados como concluídos sem erros; seus logs específicos não estão nesta pasta.
+**Evidência publicada:** o arquivo [testes_automatizados.txt](evidencias/testes_automatizados.txt) comprova **11 testes aprovados em 8,102 segundos**, resultado `OK`. As oito capturas do Playwright estão anexadas em [evidencias/](evidencias/). Os fluxos web foram reexecutados em 25/11/2026 e os logs individuais estão em [demo_web.txt](evidencias/demo_web.txt) e [demo4_web.txt](evidencias/demo4_web.txt). A suíte foi revalidada, com resultado em [revalidacao_unittest.txt](evidencias/revalidacao_unittest.txt).
 
 ## 6. Incidentes, diagnóstico e solução
 ### INC-01 — Erro 401 durante consulta governamental
@@ -80,7 +80,7 @@ Foi exibido `StarletteDeprecationWarning` envolvendo `httpx` e `starlette.testcl
 Os testes foram direcionados ao banco descartável `clinica_vet_testes`. O banco de demonstração `clinica_vet` foi mantido separado. Não registrar no repositório: `.env`, credenciais, tokens, arquivos SQLite com informações sensíveis, ambiente virtual ou capturas com dados pessoais.
 
 ## 8. Limitações e riscos remanescentes
-- O log completo de `unittest` e as oito capturas já estão arquivados em [evidencias/](evidencias/). Não estão anexados logs próprios dos dois scripts Playwright.
+- O log completo de `unittest` e as oito capturas já estão arquivados em [evidencias/](evidencias/). Os logs próprios dos dois scripts Playwright e da revalidação da suíte foram acrescentados em 25/11/2026.
 - Os testes relatados foram realizados em ambiente local, não equivalendo à homologação de produção.
 - A aplicação utiliza serviços externos, como ViaCEP, cuja disponibilidade pode variar.
 - Não foi realizada nesta etapa auditoria formal de segurança, desempenho sob carga ou acessibilidade.
@@ -145,7 +145,9 @@ As imagens a seguir documentam os testes visuais realizados com Playwright no Si
 ## Resultado dos testes
 
 - Testes automatizados das Milestones 2, 3 e 4: **11 aprovados em 8,102 segundos**, conforme [log publicado](evidencias/testes_automatizados.txt).
-- Testes visuais `tests.demo_web` e `tests.demo4_web`: **Concluídos sem erros**, conforme execução informada.
+- Testes visuais `tests.demo_web` e `tests.demo4_web`: **Concluídos sem erros**, com logs individuais da revalidação em 25/11/2026.
 - Integração governamental: **Funcionando após correção da configuração dos servidores**.
 
 As oito capturas estão anexadas em [evidencias/](evidencias/). O log detalhado está em [testes_automatizados.txt](evidencias/testes_automatizados.txt) e o resumo manual em [testes_manuais_resumo.txt](evidencias/testes_manuais_resumo.txt). Veja também a [matriz de 16 cenários](matriz_testes.md).
+
+A revalidação em 25/11/2026 aprovou os mesmos 11 métodos em 7,426 segundos. O registro original de 22/11 permanece preservado.

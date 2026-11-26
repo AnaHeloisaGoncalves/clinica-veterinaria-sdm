@@ -1,0 +1,18 @@
+C:\Users\aninh\Documents\Codex\clinica-milestone-2\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+test_autenticacao_e_cadastros (tests.entrega2.EntregaDois.test_autenticacao_e_cadastros) ... ok
+test_agendamento_cancelamento_e_atraso (tests.entrega3.EntregaTres.test_agendamento_cancelamento_e_atraso) ... ok
+test_campos_clinicos_obrigatorios (tests.entrega3.EntregaTres.test_campos_clinicos_obrigatorios) ... ok
+test_cep_inexistente_timeout_indisponivel (tests.entrega3.EntregaTres.test_cep_inexistente_timeout_indisponivel) ... ok
+test_datas_situacao_e_responsavel (tests.entrega3.EntregaTres.test_datas_situacao_e_responsavel) ... ok
+test_fluxo_clinico_e_rfid (tests.entrega3.EntregaTres.test_fluxo_clinico_e_rfid) ... ok
+test_sem_token_e_logout (tests.entrega3.EntregaTres.test_sem_token_e_logout) ... ok
+test_tutor_duplicado_nao_deixa_endereco (tests.entrega3.EntregaTres.test_tutor_duplicado_nao_deixa_endereco) ... ok
+test_integracao_falha_reenvio_idempotencia (tests.entrega4.EntregaQuatro.test_integracao_falha_reenvio_idempotencia) ... ok
+test_rejeicao_corrigida_e_vacinas_sem_comunicacao (tests.entrega4.EntregaQuatro.test_rejeicao_corrigida_e_vacinas_sem_comunicacao) ... ok
+test_sincronizacao_cadastro_atualizacao (tests.entrega4.EntregaQuatro.test_sincronizacao_cadastro_atualizacao) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 7.426s
+
+OK

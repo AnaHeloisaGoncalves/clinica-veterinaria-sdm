@@ -1,0 +1,1 @@
+OK: login, CEP real, tutor, animal sem raça/nascimento, RFID duplicado, consulta, vacinas, ficha, celular, logout e sessão expirada.
