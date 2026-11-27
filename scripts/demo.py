@@ -2,7 +2,7 @@
 import os
 from api_clinica.auth import hash_senha
 from api_clinica.db import database, query, write
-from scripts.catalogo import popular
+from scripts.catalogos import carregar_catalogos
 
 
 def main():
@@ -17,14 +17,7 @@ def main():
                 (nome_completo, cpf, numero_crmv, uf_crmv, email, senha_hash, senha_confirmada, administrador)
                 VALUES ('Veterinária Demonstração', '52998224725', 'DEMO-001', 'SP',
                         'demo@example.test', %s, TRUE, TRUE)""", (hash_senha(senha),))
-        email_gestor = "gestor@clinica.test"
-        if not query(db, "SELECT id FROM veterinario WHERE email = %s", (email_gestor,)):
-            write(db, """
-                INSERT INTO veterinario
-                    (nome_completo, cpf, numero_crmv, uf_crmv, email, senha_hash, senha_confirmada, administrador)
-                VALUES ('Gestor da Apresentação', '47135092730', 'DEMO-GESTOR', 'SP', %s, %s, TRUE, TRUE)
-                """, (email_gestor, hash_senha(senha)))
-        popular(db)
+        carregar_catalogos(db)
         db.commit()
         print("Conta demo@example.test e catálogos preparados. Senha: valor de DEMO_PASSWORD no .env.")
     finally:

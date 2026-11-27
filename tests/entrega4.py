@@ -91,6 +91,12 @@ class EntregaQuatro(unittest.TestCase):
         outra_chave = httpx.post(governo + "/vacinacoes-antirrabicas",
                                 headers={**headers, "Idempotency-Key": str(uuid.uuid4())}, json=payload)
         self.assertEqual(outra_chave.status_code, 409)
+        # Reconsultar após todos os replays comprova a contagem persistida,
+        # além da igualdade dos protocolos retornados pelas respostas.
+        externo_apos_replays = self.client.get(f"/clinica/animais/{animal_id}/governo")
+        self.assertEqual(externo_apos_replays.status_code, 200)
+        self.assertEqual(len(externo_apos_replays.json()["vacinas"]), 1)
+        self.assertEqual(externo_apos_replays.json()["vacinas"][0]["vacina_id"], vacina_id)
         self.assertEqual(httpx.get(governo + "/animais/" + self.animal["codigo_rfid"]).status_code, 401)
         outras = self.client.post("/clinica/vacinas", json={**vacina, "antirrabica": False})
         self.assertEqual(outras.status_code, 201)

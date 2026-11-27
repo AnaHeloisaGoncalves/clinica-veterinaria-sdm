@@ -106,11 +106,28 @@ def logout(vet=Depends(sessao), db=Depends(database)):
     return Response(status_code=204)
 
 
-def digest_acesso(codigo, finalidade=""):
-    return hashlib.sha256((finalidade + codigo).encode()).hexdigest()
+@router.get("/me")
+def perfil(vet=Depends(sessao), db=Depends(database)):
+    return query(db, "SELECT id, nome_completo, email, administrador FROM veterinario WHERE id=%s", (vet["id"],))[0]
 
 
-def cria_confirmacao(db, vet_id, finalidade=""):
+@router.post("/veterinarios/{vet_id}/reenviar-confirmacao", status_code=204)
+def reenviar_confirmacao(vet_id: int, vet=Depends(sessao), db=Depends(database)):
+    admin = query(db, "SELECT administrador FROM veterinario WHERE id=%s", (vet["id"],))[0]
+    if not admin["administrador"]:
+        raise HTTPException(403, "Operação restrita a administradores")
+    rows = query(db, "SELECT email, senha_confirmada, situacao FROM veterinario WHERE id=%s FOR UPDATE", (vet_id,))
+    if not rows:
+        raise HTTPException(404, "Veterinário não encontrado")
+    if rows[0]["situacao"] != "ATIVO" or rows[0]["senha_confirmada"]:
+        raise HTTPException(409, "A conta deve estar ativa e aguardando confirmação")
+    codigo = cria_confirmacao(db, vet_id)
+    db.commit()
+    simula_email(rows[0]["email"], codigo)
+    return Response(status_code=204)
+
+
+def cria_confirmacao(db, vet_id):
     codigo = secrets.token_urlsafe(32)
     digest = digest_acesso(codigo, finalidade)
     write(db, "UPDATE veterinario SET confirmacao_hash = %s, confirmacao_expira_em = UTC_TIMESTAMP() + INTERVAL 1 HOUR WHERE id = %s",

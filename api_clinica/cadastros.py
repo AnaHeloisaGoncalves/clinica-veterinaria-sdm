@@ -202,7 +202,10 @@ def validar_raca(db, dados):
 
 
 def add_crud(path, table, schema, create_schema, inactive):
-    columns = ", ".join(("id", *schema.model_fields, "situacao"))
+    metadata = {"tutor": ("cadastrado_em",), "veterinario": (
+        "cadastrado_em", "senha_confirmada", "senha_confirmada_em", "ultimo_acesso_em", "administrador",
+    )}.get(table, ())
+    columns = ", ".join(("id", *schema.model_fields, "situacao", *metadata))
 
     def get_one(db, registro_id):
         rows = query(db, f"SELECT {columns} FROM {table} WHERE id = %s", (registro_id,))

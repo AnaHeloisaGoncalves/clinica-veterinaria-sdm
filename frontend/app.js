@@ -68,6 +68,13 @@ function avisar(texto, erro = false) {
 }
 
 function campo(nome, titulo, tipo = "text", obrigatorio = false, extra = "") {
+  if (tipo === "password") {
+    return (
+      '<div class="campo-senha"><label>' + titulo + '<input name="' + nome + '" type="password" ' +
+      (obrigatorio ? "required " : "") + extra + '></label>' +
+      '<button type="button" class="secondary alternar-senha" aria-pressed="false">Mostrar senha</button></div>'
+    );
+  }
   return (
     "<label>" +
     titulo +
@@ -159,6 +166,7 @@ function estrutura(titulo, conteudo) {
     [
       ["inicio", "Início"],
       ["tutores", "Tutores"],
+      ["veterinarios", "Veterinários"],
       ["animais", "Animais"],
       ["clinica", "Atendimento"],
       ["catalogos", "Espécies e raças"],
@@ -209,16 +217,38 @@ function login(mensagem = "") {
       'autocomplete="current-password"',
     ) +
     '<button type="submit">Entrar</button></form>' +
-    '<p><button type="button" class="secondary" id="recuperar-senha">Esqueci minha senha</button></p>' +
-    '<p class="muted">Primeiro acesso? Solicite um convite ao gestor da clínica.</p></section></div>';
-  document.querySelector("#recuperar-senha").onclick = recuperarSenha;
-  enviarFormulario("login", async (d, form) => {
-    const sessao = await api("/login", "POST", { ...d, senha: form.elements.senha.value });
+    '<p class="muted">Primeiro acesso? <button type="button" class="secondary" id="abrir-cadastro">Criar minha conta de veterinário</button></p></section></div>';
+  document.querySelector("#abrir-cadastro").onclick = cadastrarVeterinario;
+  enviarFormulario("login", async (d) => {
+    const sessao = await api("/login", "POST", d);
     token = sessao.token_acesso;
     sessionStorage.setItem("clinica_token", token);
     await navegar("inicio");
   });
 }
+function cadastrarVeterinario() {
+  app.innerHTML = '<div class="container"><section class="card login"><p class="muted">Clínica Veterinária</p><h1>Criar conta de veterinário</h1><div id="aviso" role="status" tabindex="-1"></div><form id="cadastro-veterinario">' +
+    campo("nome_completo", "Nome completo", "text", true) + campo("cpf", "CPF", "text", true) +
+    campo("email", "E-mail", "email", true) + campo("telefone", "Telefone") +
+    campo("numero_crmv", "Número do CRMV", "text", true) + campo("uf_crmv", "UF do CRMV", "text", true, 'maxlength="2"') +
+    campo("senha", "Senha (mínimo de 12 caracteres)", "password", true, 'minlength="12" autocomplete="new-password"') +
+    '<button type="submit">Criar conta</button></form><button type="button" class="secondary" id="voltar-login">Voltar para o login</button></section></div>';
+  document.querySelector("#voltar-login").onclick = () => login();
+  enviarFormulario("cadastro-veterinario", async (dados) => {
+    const resposta = await api("/cadastro-veterinario", "POST", dados);
+    login(resposta.mensagem || "Conta criada com sucesso. Entre com seu e-mail e senha.");
+  });
+}
+
+document.addEventListener("click", (evento) => {
+  const botao = evento.target.closest(".alternar-senha");
+  if (!botao) return;
+  const entrada = botao.parentElement.querySelector('input[type="password"], input[type="text"]');
+  const mostrar = entrada.type === "password";
+  entrada.type = mostrar ? "text" : "password";
+  botao.textContent = mostrar ? "Ocultar senha" : "Mostrar senha";
+  botao.setAttribute("aria-pressed", String(mostrar));
+});
 async function navegar(pagina) {
   if (!token) return login();
   estrutura("Carregando", "<p>Aguarde...</p>");
@@ -232,10 +262,7 @@ async function navegar(pagina) {
     const entidades = ["tutores", "animais", "especies", "racas"];
     const listas = await Promise.all(entidades.map((e) => api("/" + e)));
     entidades.forEach((e, i) => (dados[e] = listas[i]));
-    if (["tutores", "animais", "clinica"].includes(pagina))
-      dados.nascimento = await api("/regras-nascimento");
-    if (pagina === "clinica") dados.vacinas = await api("/clinica/catalogo-vacinas");
-    if (token) ({ inicio, tutores, animais, clinica, catalogos })[pagina]();
+    if (token) await ({ inicio, tutores, animais, clinica, catalogos, veterinarios })[pagina]();
   } catch (erro) {
     avisar(erro.message, true);
   }
@@ -257,14 +284,14 @@ function inicio() {
       '<section class="card"><h2>Atendimento</h2><p>Os registros ficam vinculados ao veterinário conectado.</p></section></div>',
   );
 }
-function tutores() {
+function tutores(tutorEdicao = null, enderecoEdicao = null) {
+  const editando = tutorEdicao !== null;
   estrutura(
     "Tutores",
-    '<section class="card"><h2>Novo tutor</h2><form id="tutor"><div class="grid">' +
-      campo("nome_completo", "Nome completo", "text", true, 'maxlength="150"') +
-      campo("cpf", "CPF", "text", true, 'inputmode="numeric" maxlength="14" pattern="[0-9]{11}|[0-9]{3}[.][0-9]{3}[.][0-9]{3}\\x2D[0-9]{2}"') +
-      campo("data_nascimento", "Nascimento", "date", true,
-        'min="' + nascimentoMinimo(dados.nascimento.limite_tutor_meses) + '" max="' + dados.nascimento.hoje + '"') +
+    '<section class="card"><h2>' + (editando ? 'Editar tutor' : 'Novo tutor') + '</h2><form id="tutor"><div class="grid">' +
+      campo("nome_completo", "Nome completo", "text", true) +
+      campo("cpf", "CPF", "text", true) +
+      campo("data_nascimento", "Nascimento", "date", true) +
       campo("email", "E-mail", "email", true) +
       campo("telefone", "Telefone", "tel", false, 'maxlength="20" placeholder="(21) 99999-9999"') +
       '</div><fieldset><legend>Endereço</legend><div class="row">' +
@@ -281,9 +308,10 @@ function tutores() {
       campo("complemento", "Complemento") +
       campo("bairro", "Bairro", "text", true) +
       campo("cidade", "Cidade", "text", true) +
-      seletor("uf", "UF", dados.nascimento.ufs.map((uf) => ({ id: uf, nome: uf }))) +
-      campo("codigo_ibge", "Código IBGE (opcional)", "text", false, 'inputmode="numeric" maxlength="7" pattern="[0-9]{7}"') +
-      '</div></fieldset><button type="submit">Cadastrar tutor</button></form></section>' +
+      campo("uf", "UF", "text", true, 'maxlength="2"') +
+      campo("codigo_ibge", "Código IBGE (opcional)") +
+      '</div></fieldset><button type="submit">' + (editando ? 'Salvar tutor' : 'Cadastrar tutor') + '</button>' +
+      (editando ? '<button type="button" id="cancelar-tutor">Cancelar edição</button>' : '') + '</form></section>' +
       '<section class="card"><h2>Tutores cadastrados</h2>' +
       (dados.tutores
         .map(
@@ -294,12 +322,31 @@ function tutores() {
             escapar(t.email) +
             " · " +
             escapar(t.situacao) +
-            "</p>",
+            '</p><p>CPF: ' + escapar(t.cpf) + ' · Cadastro: ' + escapar(t.cadastrado_em || '') + '</p>' +
+            '<button data-editar-tutor="' + t.id + '">Consultar / editar ' + escapar(t.nome_completo) + '</button>' +
+            (t.situacao === 'ATIVO' ? '<button data-inativar-tutor="' + t.id + '" class="secondary">Inativar tutor</button>' : ''),
         )
         .join("") || "<p>Nenhum tutor cadastrado.</p>") +
       "</section>",
   );
   const form = document.querySelector("#tutor");
+  if (editando) {
+    const valores = { ...tutorEdicao, ...enderecoEdicao };
+    for (const campo of form.elements) if (campo.name) campo.value = valores[campo.name] ?? "";
+    document.querySelector("#cancelar-tutor").onclick = () => tutores();
+  }
+  document.querySelectorAll("[data-editar-tutor]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const tutor = dados.tutores.find((t) => t.id == b.dataset.editarTutor);
+        const endereco = await api("/enderecos/" + tutor.endereco_id);
+        tutores(tutor, endereco);
+      } catch (erro) { avisar(erro.message, true); }
+    };
+  });
+  document.querySelectorAll("[data-inativar-tutor]").forEach((b) => {
+    b.onclick = () => inativarRegistro("tutores", b.dataset.inativarTutor, "tutores");
+  });
   document.querySelector("#buscar-cep").onclick = async (evento) => {
     const botao = evento.currentTarget;
     const cepDigitado = form.elements.cep.value.trim();
@@ -321,6 +368,7 @@ function tutores() {
       botao.disabled = false;
     }
   };
+  form.elements.cep.addEventListener("change", () => document.querySelector("#buscar-cep").click());
   enviarFormulario("tutor", async (d) => {
     const endereco = {};
     for (const c of [
@@ -337,36 +385,23 @@ function tutores() {
       delete d[c];
     }
     endereco.uf = endereco.uf.toUpperCase();
-    await api("/clinica/tutores", "POST", { ...d, endereco });
+    d.cpf = d.cpf.replace(/\D/g, "");
+    await api(editando ? "/clinica/tutores/" + tutorEdicao.id : "/clinica/tutores", editando ? "PUT" : "POST", { ...d, endereco });
     await navegar("tutores");
-    avisar("Tutor cadastrado com sucesso.");
+    avisar(editando ? "Tutor atualizado com sucesso." : "Tutor cadastrado com sucesso.");
   });
 }
-function mesesCompletos(nascimento, hoje) {
-  const [ano, mes, dia] = nascimento.split("-").map(Number);
-  const [anoAtual, mesAtual, diaAtual] = hoje.split("-").map(Number);
-  return (anoAtual - ano) * 12 + mesAtual - mes - Number(diaAtual < dia);
-}
-
-function nascimentoMinimo(limite) {
-  const hoje = dados.nascimento.hoje;
-  const [ano, mes, dia] = hoje.split("-").map(Number);
-  const mesLimite = mes - 2 - limite;
-  const ultimoDia = new Date(Date.UTC(ano, mesLimite + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(ano, mesLimite, Math.min(dia, ultimoDia) + 1)).toISOString().slice(0, 10);
-}
-
-function animais(edicao = null) {
-  const opcoes = (lista, atual) =>
-    lista.filter((item) => item.id === atual || !String(item.situacao).startsWith("INATIV"));
+function animais(animalEdicao = null) {
+  const editando = animalEdicao !== null;
+  const opcoesEdicao = (lista, id) =>
+    lista.filter((item) => ativos([item]).length || item.id == id);
   estrutura(
     "Animais",
-    '<section class="card"><h2>' + (edicao ? "Editar animal" : "Novo animal") +
-      '</h2><form id="animal"><div class="grid">' +
-      campo("nome", "Nome", "text", true, 'minlength="2" maxlength="100"') +
-      (edicao ? "" : campo("codigo_rfid", "Código RFID", "text", true, 'inputmode="numeric" minlength="15" maxlength="15" pattern="[0-9]{15}" placeholder="15 dígitos"')) +
-      seletor("tutor_id", "Tutor", opcoes(dados.tutores, edicao?.tutor_id)) +
-      seletor("especie_id", "Espécie", opcoes(dados.especies, edicao?.especie_id)) +
+    '<section class="card"><h2>' + (editando ? 'Editar animal' : 'Novo animal') + '</h2><form id="animal"><div class="grid">' +
+      campo("nome", "Nome", "text", true) +
+      (editando ? '' : campo("codigo_rfid", "Código RFID", "text", true, 'maxlength="48"')) +
+      seletor("tutor_id", "Tutor", opcoesEdicao(dados.tutores, animalEdicao?.tutor_id)) +
+      seletor("especie_id", "Espécie", opcoesEdicao(dados.especies, animalEdicao?.especie_id)) +
       seletor("raca_id", "Raça (opcional)", [], true) +
       seletor("sexo", "Sexo", Object.entries(dados.nascimento.sexos).map(([id, nome]) => ({ id, nome }))) +
       seletor("cor", "Cor", dados.nascimento.cores.map((nome) => ({ id: nome.toLowerCase(), nome }))) +
@@ -385,10 +420,10 @@ function animais(edicao = null) {
         false,
         'min="0" step="1"',
       ) +
-      '</div><p class="muted">A idade em meses é calculada pelo nascimento. Se a data for desconhecida, informe uma estimativa.</p><button type="submit">' +
-      (edicao ? "Salvar alterações" : "Cadastrar animal") + "</button>" +
-      (edicao ? ' <button type="button" class="secondary" id="cancelar-edicao">Cancelar</button>' : "") +
-      "</form></section>" +
+      '</div><p class="muted">Informe o nascimento ou a idade estimada. ' +
+      (editando ? 'O RFID e os históricos serão preservados.' : 'O RFID precisa ser único.') +
+      '</p><button type="submit">' + (editando ? 'Salvar alterações' : 'Cadastrar animal') +
+      '</button>' + (editando ? '<button type="button" id="cancelar-edicao" class="secondary">Cancelar edição</button>' : '') + '</form></section>' +
       '<section class="card"><h2>Fichas dos animais</h2>' +
       (dados.animais
         .map(
@@ -401,16 +436,16 @@ function animais(edicao = null) {
             a.id +
             '" class="secondary">Ficha de ' +
             escapar(a.nome) +
-            "</button>" +
-            '<button class="secondary" data-editar="' + a.id + '">Editar ' +
-            escapar(a.nome) + "</button></div>",
+            '</button><button data-editar-animal="' + a.id +
+            '" class="secondary">Editar ' + escapar(a.nome) + '</button>' +
+            (a.situacao === 'ATIVO' ? '<button data-inativar-animal="' + a.id + '" class="secondary">Inativar animal</button>' : '') + '</div>',
         )
         .join("") || "<p>Nenhum animal cadastrado.</p>") +
       "</section>",
   );
   const form = document.querySelector("#animal");
-  const atualizarRacas = () => {
-    const racas = opcoes(dados.racas, edicao?.raca_id).filter(
+  form.elements.especie_id.onchange = () => {
+    const racas = opcoesEdicao(dados.racas, animalEdicao?.raca_id).filter(
       (r) => r.especie_id == form.elements.especie_id.value,
     );
     form.elements.raca_id.innerHTML =
@@ -422,53 +457,28 @@ function animais(edicao = null) {
         )
         .join("");
   };
-  const nascimento = form.elements.data_nascimento;
-  const idade = form.elements.idade_estimada_meses;
-  function atualizarIdade() {
-    const limite = dados.nascimento.limite_animal_meses[form.elements.especie_id.value];
-    if (limite) {
-      nascimento.min = nascimentoMinimo(limite);
-      idade.max = limite;
-    } else {
-      nascimento.removeAttribute("min");
-      idade.removeAttribute("max");
-    }
-    nascimento.max = dados.nascimento.hoje;
-    idade.readOnly = Boolean(nascimento.value);
-    if (nascimento.value) {
-      const meses = mesesCompletos(nascimento.value, dados.nascimento.hoje);
-      idade.value = meses >= 0 ? meses : "";
-    }
-  }
-  form.elements.especie_id.onchange = () => {
-    atualizarRacas();
-    atualizarIdade();
-  };
-  nascimento.oninput = () => {
-    if (!nascimento.value && idade.readOnly) idade.value = "";
-    atualizarIdade();
-  };
-  if (edicao) {
+  if (editando) {
     for (const campo of form.elements) {
-      if (campo.name && campo.name !== "raca_id") campo.value = campo.name === "cor" ? String(edicao.cor ?? "").toLowerCase() : edicao[campo.name] ?? "";
+      if (campo.name && campo.name !== "raca_id")
+        campo.value = animalEdicao[campo.name] ?? "";
     }
+    form.elements.especie_id.onchange();
+    form.elements.raca_id.value = animalEdicao.raca_id ?? "";
     document.querySelector("#cancelar-edicao").onclick = () => animais();
+    form.elements.nome.focus();
   }
-  atualizarRacas();
-  atualizarIdade();
-  if (edicao) form.elements.raca_id.value = edicao.raca_id ?? "";
-  document.querySelectorAll("[data-editar]").forEach((botao) => {
-    botao.onclick = () => {
-      animais(dados.animais.find((animal) => animal.id === Number(botao.dataset.editar)));
-      document.querySelector("#animal").elements.nome.focus();
-    };
-  });
   enviarFormulario("animal", async (d) => {
     if (d.data_nascimento === null && d.idade_estimada_meses === null)
       throw new Error("Informe o nascimento ou a idade estimada.");
-    await api(edicao ? "/animais/" + edicao.id : "/animais", edicao ? "PUT" : "POST", d);
+    await api(editando ? "/animais/" + animalEdicao.id : "/animais", editando ? "PUT" : "POST", d);
     await navegar("animais");
-    avisar(edicao ? "Animal atualizado com sucesso." : "Animal cadastrado e RFID vinculado.");
+    avisar(editando ? "Dados do animal atualizados com sucesso." : "Animal cadastrado e RFID vinculado.");
+  });
+  document.querySelectorAll("[data-editar-animal]").forEach((b) => {
+    b.onclick = () => animais(dados.animais.find((a) => a.id == b.dataset.editarAnimal));
+  });
+  document.querySelectorAll("[data-inativar-animal]").forEach((b) => {
+    b.onclick = () => inativarRegistro("animais", b.dataset.inativarAnimal, "animais");
   });
   document
     .querySelectorAll("[data-ficha]")
@@ -605,18 +615,27 @@ async function ficha(id) {
         escapar(h.microchip?.codigo_rfid || "Não informado") +
         "</strong></p>" +
         detalhes(animal, {
+          id: "Identificador interno",
+          nome: "Nome",
+          situacao: "Situação",
           sexo: "Sexo",
           cor: "Cor",
           peso_atual_kg: "Peso (kg)",
           data_nascimento: "Nascimento",
           idade_estimada_meses: "Idade estimada (meses)",
         }) +
-        '</section><section class="card"><h2>Integração governamental simulada</h2>' +
+        '<p>Tutor: ' + escapar(dados.tutores.find((t) => t.id == animal.tutor_id)?.nome_completo) +
+        ' · Espécie: ' + escapar(dados.especies.find((e) => e.id == animal.especie_id)?.nome) +
+        ' · Raça: ' + escapar(dados.racas.find((r) => r.id == animal.raca_id)?.nome || 'Não informada') + '</p>' +
+        '</section>' + telaMicrochips(h, animal) + '<section class="card"><h2>Integração governamental simulada</h2>' +
         '<button id="sincronizar">Sincronizar cadastro do animal</button>' +
         (integracoes.map((op) => '<article><p>' + escapar(op.tipo_operacao) + ' · ' +
           escapar(op.situacao) + ' · Tentativas: ' + op.quantidade_tentativas + '</p><p>Protocolo: ' +
           escapar(op.protocolo_externo || 'Aguardando confirmação') + '</p><p>' +
-          escapar(op.mensagem_erro || '') + '</p>' + (op.situacao !== 'CONFIRMADA' ?
+          escapar(op.mensagem_erro || '') + '</p>' + detalhes(op, {
+            id: 'ID da integração', vacina_id: 'Aplicação de vacina', chave_idempotencia: 'Chave de idempotência',
+            solicitada_em: 'Solicitada em', respondida_em: 'Respondida em',
+          }) + (op.situacao !== 'CONFIRMADA' ?
           '<button data-reenviar="' + op.id + '">Reenviar comunicação</button>' : '') + '</article>').join('') ||
           '<p>Nenhuma comunicação registrada.</p>') +
         '</section><section class="card"><h2>Próximas doses e agendamentos</h2><p class="muted">Previsões registradas; confira no histórico se já houve nova aplicação.</p>' +
@@ -681,6 +700,12 @@ async function ficha(id) {
           .join("") || "<p>Nenhuma vacina registrada.</p>") +
         "</section></div>",
     );
+    if (document.querySelector("#substituir-microchip")) enviarFormulario("substituir-microchip", async (d) => {
+      if (!confirm("Substituir o microchip? O vínculo anterior ficará no histórico.")) return;
+      await api("/clinica/animais/" + id + "/microchip", "POST", d);
+      await ficha(id);
+      avisar("Novo microchip vinculado. Histórico anterior preservado. Sincronize o novo cadastro quando necessário.");
+    });
     document.querySelector("#sincronizar").onclick = async (event) => {
       event.currentTarget.disabled = true;
       try {
@@ -714,7 +739,7 @@ function catalogos() {
       campo("nome", "Nome da espécie", "text", true) +
       texto("descricao", "Descrição") +
       '<button type="submit">Cadastrar espécie</button></form>' +
-      dados.especies.map((e) => "<p>" + escapar(e.nome) + "</p>").join("") +
+      dados.especies.map((e) => "<article><h3>" + escapar(e.nome) + "</h3>" + botoesCatalogo('especies', e) + '</article>').join("") +
       '</section><section class="card"><h2>Nova raça</h2><form id="raca">' +
       seletor("especie_id", "Espécie da raça", ativos(dados.especies)) +
       campo("nome", "Nome da raça", "text", true) +
@@ -727,7 +752,7 @@ function catalogos() {
             escapar(r.nome) +
             " · " +
             escapar(dados.especies.find((e) => e.id === r.especie_id)?.nome) +
-            "</p>",
+            "</p>" + botoesCatalogo('racas', r),
         )
         .join("") +
       "</section></div>",
@@ -739,6 +764,12 @@ function catalogos() {
       avisar("Cadastro realizado.");
     });
   }
+  document.querySelectorAll('[data-editar-catalogo]').forEach((b) => {
+    b.onclick = () => editarCatalogo(b.dataset.editarCatalogo, b.dataset.id);
+  });
+  document.querySelectorAll('[data-inativar-catalogo]').forEach((b) => {
+    b.onclick = () => inativarRegistro(b.dataset.inativarCatalogo, b.dataset.id, 'catalogos');
+  });
 }
 function acessoPublico(titulo, formulario) {
   app.innerHTML =
