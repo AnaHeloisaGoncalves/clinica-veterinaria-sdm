@@ -50,6 +50,8 @@ Abra o [Swagger da clínica](http://127.0.0.1:8000/docs). Envie o código em `PO
 
 As rotas privadas cobrem endereços, tutores, animais, espécies, raças e veterinários. Para cadastrar um animal, cadastre antes as entidades referenciadas e informe o RFID no cadastro. Somente um administrador pode criar, atualizar ou inativar veterinários. O terminal da API exibe o código de confirmação como simulação do envio por e-mail para novos veterinários. O [governo simulado](http://127.0.0.1:8001/docs) mantém sua rota de saúde.
 
+O primeiro acesso de veterinários funciona por convite. Entre como administrador, abra **Acessos da equipe → Convidar veterinário**, preencha os dados e envie o convite. O profissional abre o link e define a própria senha. Em modo local, sem SMTP, o link aparece no terminal da API. Para enviar por e-mail, configure `CLINICA_PUBLIC_URL` e as variáveis `CLINICA_SMTP_*` do `.env.example`. A recuperação de senha também usa um link.
+
 ## Testes da Milestone 2
 
 Em um banco descartável com o esquema aplicado, deixe a API da clínica rodando com a mesma configuração de banco e execute em outro terminal:
@@ -87,11 +89,26 @@ padrão fica restrita ao próprio computador.
 Após criar o banco, inclua `DEMO_PASSWORD` no .env com uma senha de pelo menos 12
 caracteres e execute `python -m scripts.demo` usando o Python da .venv.
 O script cria o veterinário `demo@example.test`, já confirmado para a demonstração,
-e os catálogos Cão/Labrador e Gato/Siamês. Não apaga nem redefine cadastros existentes.
+e o catálogo inicial de espécies e raças,
+incluindo a opção de cadastro Sem raça definida (SRD). Não apaga nem redefine cadastros existentes.
+Para carregar apenas esses catálogos, sem criar a conta demo, execute
+`.venv/bin/python -m scripts.catalogo` no macOS. A carga pode ser repetida sem
+duplicar os nomes já cadastrados e preserva registros inativos.
+
+O catálogo também inclui animais domésticos, silvestres e exóticos, como coelhos,
+roedores, furões, aves, quelônios, lagartos e serpentes. Os nomes são opções de
+identificação no cadastro clínico; nomes comuns abrangentes devem ser detalhados
+na ficha. Para espécies sem catálogo de raças, deixe o campo opcional de raça vazio.
 Use somente um banco local de demonstração. Para contas normais, siga o fluxo de
 criação e confirmação da Milestone 2.
 
 O fluxo demonstrativo é: login → Tutores → consulte `01001000` → complete número/complemento e cadastre → Animais → selecione tutor/espécie/raça opcional e informe RFID → Atendimento → registre consulta e vacina → Animais → **Ficha de [nome]**.
+
+Para atualizar um animal, acesse **Animais → Editar [nome]**, altere os dados e
+clique em **Salvar alterações**. É possível editar nome, tutor, espécie, raça,
+sexo, cor, peso, nascimento e idade estimada. A troca de espécie limpa a raça
+selecionada e mostra apenas opções compatíveis. O RFID e os históricos são
+preservados. **Cancelar edição** descarta as alterações não salvas.
 
 ### Casos de erro demonstráveis
 
@@ -141,3 +158,5 @@ A clínica comunica aplicações antirrábicas ao governo simulado e mostra pend
 A documentação está em **[docs/etapa5](docs/etapa5/README.md)**, incluindo o [relatório](docs/etapa5/relatorio_final.md), a [matriz de 16 cenários](docs/etapa5/matriz_testes.md), oito capturas de tela e o log de **11 testes automatizados aprovados em 8,102 segundos**.
 
 A revalidação de 25/11/2026 está em [revalidacao_unittest.txt](docs/etapa5/evidencias/revalidacao_unittest.txt). Os fluxos de navegador têm logs próprios em [demo_web.txt](docs/etapa5/evidencias/demo_web.txt) e [demo4_web.txt](docs/etapa5/evidencias/demo4_web.txt). A identificação da equipe e o roteiro da demonstração estão na documentação da Etapa 5.
+
+Para preparar também `gestor@clinica.test`, defina `DEMO_PASSWORD` no `.env` local e execute `python -m scripts.demo` em um banco de demonstração.

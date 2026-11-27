@@ -4,11 +4,14 @@ from typing import Literal
 import httpx
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .auth import sessao
 from .db import database, query, write
 from .cadastros import Pessoa, Endereco
+from .nascimento import Nascimento, chave_especie, validar_nascimento_tutor
+from .vacinas import VACINAS
+from .validacao import VIAS_VACINA
 from .integracao import snapshot_animal, nova_operacao, enviar
 
 router = APIRouter(prefix="/clinica", dependencies=[Depends(sessao)])
@@ -19,13 +22,13 @@ class DadosClinicos(BaseModel):
 class Consulta(DadosClinicos):
     animal_id: int = Field(gt=0)
     data_hora: datetime
-    motivo: str = Field(min_length=1)
-    anamnese: str | None = None
-    sintomas: str | None = None
-    diagnostico: str | None = None
-    tratamento_prescrito: str | None = None
-    observacoes: str | None = None
-    prescricao_medicamentos: str | None = None
+    motivo: str = Field(min_length=1, max_length=10000)
+    anamnese: str | None = Field(default=None, max_length=10000)
+    sintomas: str | None = Field(default=None, max_length=10000)
+    diagnostico: str | None = Field(default=None, max_length=10000)
+    tratamento_prescrito: str | None = Field(default=None, max_length=10000)
+    observacoes: str | None = Field(default=None, max_length=10000)
+    prescricao_medicamentos: str | None = Field(default=None, max_length=10000)
     peso_registrado_kg: Decimal | None = Field(default=None, gt=0, max_digits=8, decimal_places=3)
     temperatura_c: Decimal | None = Field(default=None, gt=0, lt=100, max_digits=5, decimal_places=2)
     situacao: Literal["REALIZADA", "AGENDADA", "CANCELADA", "NAO_COMPARECEU"] = "REALIZADA"
@@ -42,19 +45,27 @@ class Consulta(DadosClinicos):
 
 class Vacina(DadosClinicos):
     animal_id: int = Field(gt=0)
-    nome_vacina: str = Field(min_length=1, max_length=120)
-    tipo_vacina: str | None = Field(default=None, max_length=60)
-    antirrabica: bool = False
+    vacina_codigo: str = Field(max_length=60, exclude=True)
     fabricante: str | None = Field(default=None, max_length=120)
     numero_lote: str | None = Field(default=None, max_length=120)
     via_aplicacao: str | None = Field(default=None, max_length=60)
     validade_lote: date | None = None
-    observacoes: str | None = None
+    observacoes: str | None = Field(default=None, max_length=10000)
     data_agendada: date | None = None
     data_aplicacao: date | None = None
     dose_etapa: str = Field(min_length=1, max_length=60)
     proxima_dose_em: date | None = None
     situacao: Literal["APLICADA", "AGENDADA", "CANCELADA"] = "APLICADA"
+
+    @field_validator("via_aplicacao")
+    @classmethod
+    def validar_via(cls, valor):
+        if valor is None:
+            return None
+        valor = valor.upper()
+        if valor not in VIAS_VACINA:
+            raise ValueError("Selecione uma via de aplicação da lista")
+        return valor
 
     @model_validator(mode="after")
     def validar_datas(self):
@@ -104,16 +115,40 @@ def criar_consulta(dados: Consulta, db=Depends(database), vet=Depends(sessao)):
     registro_id = insert_clinical(db, "consulta", dados, {"veterinario_id": vet["id"]})
     return query(db, "SELECT c.*, v.nome_completo AS veterinario_nome FROM consulta c JOIN veterinario v ON v.id = c.veterinario_id WHERE c.id = %s", (registro_id,))[0]
 
+@router.get("/catalogo-vacinas")
+def catalogo_vacinas(db=Depends(database)):
+    especies = query(db, "SELECT id, nome FROM especie")
+    return [
+        {"codigo": codigo, "nome": nome, "tipo": tipo, "antirrabica": antirrabica,
+         "especies": [e["id"] for e in especies if chave_especie(e["nome"]) in compatibilidade]}
+        for codigo, (nome, tipo, compatibilidade, antirrabica) in VACINAS.items()
+    ]
+
+
 @router.post("/vacinas", status_code=201)
 def criar_vacina(dados: Vacina, db=Depends(database), vet=Depends(sessao)):
-    ensure_animal(db, dados.animal_id)
-    registro_id = insert_clinical(db, "vacina", dados, {"veterinario_id": vet["id"]}, commit=False)
+    animais = query(db, """
+        SELECT e.nome FROM animal a JOIN especie e ON e.id = a.especie_id
+        WHERE a.id = %s AND a.situacao = 'ATIVO' FOR SHARE
+        """, (dados.animal_id,))
+    if not animais:
+        raise HTTPException(404, "Animal não encontrado ou inativo")
+    vacina = VACINAS.get(dados.vacina_codigo)
+    if not vacina:
+        raise HTTPException(422, "Selecione uma vacina do catálogo.")
+    nome, tipo, especies, antirrabica = vacina
+    if chave_especie(animais[0]["nome"]) not in especies:
+        raise HTTPException(422, "A vacina selecionada não está no catálogo para esta espécie.")
+    registro_id = insert_clinical(db, "vacina", dados, {
+        "veterinario_id": vet["id"], "nome_vacina": nome,
+        "tipo_vacina": tipo, "antirrabica": antirrabica,
+    }, commit=False)
     operacao_id = None
-    if dados.antirrabica and dados.situacao == "APLICADA":
+    if antirrabica and dados.situacao == "APLICADA":
         animal = snapshot_animal(db, dados.animal_id)
         responsavel = query(db, "SELECT nome_completo, numero_crmv, uf_crmv FROM veterinario WHERE id=%s", (vet["id"],))[0]
         payload = {
-            "animal": animal, "vacina_id": registro_id, "nome_vacina": dados.nome_vacina,
+            "animal": animal, "vacina_id": registro_id, "nome_vacina": nome,
             "antirrabica": True, "fabricante": dados.fabricante, "numero_lote": dados.numero_lote,
             "data_aplicacao": dados.data_aplicacao,
             "veterinario": f"{responsavel['nome_completo']} / {responsavel['numero_crmv']}-{responsavel['uf_crmv']}",
@@ -162,8 +197,10 @@ def consultar_cep(cep: str):
 
 
 class TutorComEndereco(Pessoa):
-    data_nascimento: date
+    data_nascimento: Nascimento
     endereco: Endereco
+
+    _validar_nascimento = field_validator("data_nascimento")(validar_nascimento_tutor)
 
 
 @router.post("/tutores", status_code=201)

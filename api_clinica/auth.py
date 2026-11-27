@@ -6,11 +6,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from .db import database, query, write
+from .email_acesso import enviar_recuperacao
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
@@ -65,7 +66,7 @@ def sessao(credentials: HTTPAuthorizationCredentials | None = Depends(bearer), d
     except jwt.InvalidTokenError as error:
         raise unauthorized() from error
     rows = query(db, """
-        SELECT v.id, s.id AS sessao_id FROM sessao s
+        SELECT v.id, v.administrador, s.id AS sessao_id FROM sessao s
         JOIN veterinario v ON v.id = s.veterinario_id
         WHERE s.id = %s AND v.id = %s AND s.expira_em > UTC_TIMESTAMP()
               AND v.situacao = 'ATIVO' AND v.senha_confirmada = TRUE
@@ -105,9 +106,13 @@ def logout(vet=Depends(sessao), db=Depends(database)):
     return Response(status_code=204)
 
 
-def cria_confirmacao(db, vet_id):
+def digest_acesso(codigo, finalidade=""):
+    return hashlib.sha256((finalidade + codigo).encode()).hexdigest()
+
+
+def cria_confirmacao(db, vet_id, finalidade=""):
     codigo = secrets.token_urlsafe(32)
-    digest = hashlib.sha256(codigo.encode()).hexdigest()
+    digest = digest_acesso(codigo, finalidade)
     write(db, "UPDATE veterinario SET confirmacao_hash = %s, confirmacao_expira_em = UTC_TIMESTAMP() + INTERVAL 1 HOUR WHERE id = %s",
           (digest, vet_id))
     return codigo
@@ -119,7 +124,7 @@ def simula_email(email, codigo):
 
 @router.post("/confirmar-senha", status_code=204)
 def confirmar(dados: Confirmacao, db=Depends(database)):
-    digest = hashlib.sha256(dados.codigo.encode()).hexdigest()
+    digest = digest_acesso(dados.codigo)
     _, count = write(db, """
         UPDATE veterinario SET senha_confirmada = TRUE, senha_confirmada_em = UTC_TIMESTAMP(),
             confirmacao_hash = NULL, confirmacao_expira_em = NULL
@@ -130,3 +135,69 @@ def confirmar(dados: Confirmacao, db=Depends(database)):
         raise HTTPException(400, "Código inválido ou expirado")
     db.commit()
     return Response(status_code=204)
+
+class DefinicaoSenha(Confirmacao):
+    senha: str = Field(min_length=12, max_length=256)
+
+
+class Recuperacao(BaseModel):
+    email: str = Field(max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@router.get("/sessao")
+def perfil(vet=Depends(sessao)):
+    return {"administrador": bool(vet["administrador"])}
+
+
+def exigir_gestor(db, vet):
+    rows = query(db, """
+        SELECT id FROM veterinario WHERE id = %s AND administrador = TRUE
+            AND situacao = 'ATIVO' AND senha_confirmada = TRUE FOR UPDATE
+        """, (vet["id"],))
+    if not rows:
+        raise HTTPException(403, "Operação restrita a gestores.")
+
+
+def definir_senha(db, dados, finalidade, confirmada):
+    rows = query(db, """
+        SELECT id FROM veterinario
+        WHERE confirmacao_hash = %s AND confirmacao_expira_em > UTC_TIMESTAMP()
+            AND situacao = 'ATIVO' AND senha_confirmada = %s FOR UPDATE
+        """, (digest_acesso(dados.codigo, finalidade), confirmada))
+    if not rows:
+        raise HTTPException(400, "Link inválido, expirado ou já utilizado.")
+    vet_id = rows[0]["id"]
+    write(db, """
+        UPDATE veterinario SET senha_hash = %s, senha_confirmada = TRUE,
+            senha_confirmada_em = UTC_TIMESTAMP(), confirmacao_hash = NULL, confirmacao_expira_em = NULL
+        WHERE id = %s
+        """, (hash_senha(dados.senha), vet_id))
+    write(db, "DELETE FROM sessao WHERE veterinario_id = %s", (vet_id,))
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/convites/aceitar", status_code=204)
+def aceitar_convite(dados: DefinicaoSenha, db=Depends(database)):
+    return definir_senha(db, dados, "convite", False)
+
+
+@router.post("/recuperacao-senha", status_code=204)
+def solicitar_recuperacao(dados: Recuperacao, tarefas: BackgroundTasks, db=Depends(database)):
+    rows = query(db, """
+        SELECT id, email FROM veterinario WHERE email = %s AND situacao = 'ATIVO'
+            AND senha_confirmada = TRUE
+            AND (confirmacao_expira_em IS NULL OR confirmacao_expira_em <= UTC_TIMESTAMP() + INTERVAL 59 MINUTE)
+        FOR UPDATE
+        """, (dados.email,))
+    if rows:
+        vet = rows[0]
+        codigo = cria_confirmacao(db, vet["id"], "recuperacao")
+        db.commit()
+        tarefas.add_task(enviar_recuperacao, vet["email"], codigo)
+    return Response(status_code=204)
+
+
+@router.post("/recuperacao-senha/concluir", status_code=204)
+def concluir_recuperacao(dados: DefinicaoSenha, db=Depends(database)):
+    return definir_senha(db, dados, "recuperacao", True)

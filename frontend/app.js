@@ -1,6 +1,7 @@
 // A API serve estas telas no mesmo endereço. A sessão fica apenas nesta aba.
 let token = sessionStorage.getItem("clinica_token");
 let dados = {};
+let gestor = false;
 const app = document.querySelector("#app");
 const escapar = (valor) =>
   String(valor ?? "").replace(
@@ -50,7 +51,9 @@ async function api(caminho, metodo = "GET", corpo) {
         )
         .join("; ");
     }
-    throw new Error(detalhe || "Não foi possível concluir a operação.");
+    const erro = new Error(detalhe || "Não foi possível concluir a operação.");
+    erro.status = resposta.status;
+    throw erro;
   }
   return conteudo;
 }
@@ -159,6 +162,7 @@ function estrutura(titulo, conteudo) {
       ["animais", "Animais"],
       ["clinica", "Atendimento"],
       ["catalogos", "Espécies e raças"],
+      ...(gestor ? [["acessos", "Acessos da equipe"]] : []),
     ]
       .map(
         ([p, t]) =>
@@ -204,9 +208,12 @@ function login(mensagem = "") {
       true,
       'autocomplete="current-password"',
     ) +
-    '<button type="submit">Entrar</button></form></section></div>';
-  enviarFormulario("login", async (d) => {
-    const sessao = await api("/login", "POST", d);
+    '<button type="submit">Entrar</button></form>' +
+    '<p><button type="button" class="secondary" id="recuperar-senha">Esqueci minha senha</button></p>' +
+    '<p class="muted">Primeiro acesso? Solicite um convite ao gestor da clínica.</p></section></div>';
+  document.querySelector("#recuperar-senha").onclick = recuperarSenha;
+  enviarFormulario("login", async (d, form) => {
+    const sessao = await api("/login", "POST", { ...d, senha: form.elements.senha.value });
     token = sessao.token_acesso;
     sessionStorage.setItem("clinica_token", token);
     await navegar("inicio");
@@ -216,9 +223,18 @@ async function navegar(pagina) {
   if (!token) return login();
   estrutura("Carregando", "<p>Aguarde...</p>");
   try {
+    const perfil = await api("/sessao");
+    gestor = perfil.administrador;
+    if (pagina === "acessos") {
+      dados.regrasAcesso = await api("/regras-nascimento");
+      return await acessos();
+    }
     const entidades = ["tutores", "animais", "especies", "racas"];
     const listas = await Promise.all(entidades.map((e) => api("/" + e)));
     entidades.forEach((e, i) => (dados[e] = listas[i]));
+    if (["tutores", "animais", "clinica"].includes(pagina))
+      dados.nascimento = await api("/regras-nascimento");
+    if (pagina === "clinica") dados.vacinas = await api("/clinica/catalogo-vacinas");
     if (token) ({ inicio, tutores, animais, clinica, catalogos })[pagina]();
   } catch (erro) {
     avisar(erro.message, true);
@@ -245,18 +261,19 @@ function tutores() {
   estrutura(
     "Tutores",
     '<section class="card"><h2>Novo tutor</h2><form id="tutor"><div class="grid">' +
-      campo("nome_completo", "Nome completo", "text", true) +
-      campo("cpf", "CPF", "text", true) +
-      campo("data_nascimento", "Nascimento", "date", true) +
+      campo("nome_completo", "Nome completo", "text", true, 'maxlength="150"') +
+      campo("cpf", "CPF", "text", true, 'inputmode="numeric" maxlength="14" pattern="[0-9]{11}|[0-9]{3}[.][0-9]{3}[.][0-9]{3}\\x2D[0-9]{2}"') +
+      campo("data_nascimento", "Nascimento", "date", true,
+        'min="' + nascimentoMinimo(dados.nascimento.limite_tutor_meses) + '" max="' + dados.nascimento.hoje + '"') +
       campo("email", "E-mail", "email", true) +
-      campo("telefone", "Telefone") +
+      campo("telefone", "Telefone", "tel", false, 'maxlength="20" placeholder="(21) 99999-9999"') +
       '</div><fieldset><legend>Endereço</legend><div class="row">' +
       campo(
         "cep",
         "CEP",
         "text",
         true,
-        'inputmode="numeric" maxlength="9" placeholder="01001-000"',
+        'inputmode="numeric" maxlength="9" pattern="[0-9]{5}\\x2D?[0-9]{3}" placeholder="01001-000"',
       ) +
       '<button type="button" id="buscar-cep">Consultar CEP</button></div><p class="muted">Confira o endereço e complete o número. Todos os campos podem ser editados.</p><div class="grid">' +
       campo("logradouro", "Logradouro", "text", true) +
@@ -264,8 +281,8 @@ function tutores() {
       campo("complemento", "Complemento") +
       campo("bairro", "Bairro", "text", true) +
       campo("cidade", "Cidade", "text", true) +
-      campo("uf", "UF", "text", true, 'maxlength="2"') +
-      campo("codigo_ibge", "Código IBGE (opcional)") +
+      seletor("uf", "UF", dados.nascimento.ufs.map((uf) => ({ id: uf, nome: uf }))) +
+      campo("codigo_ibge", "Código IBGE (opcional)", "text", false, 'inputmode="numeric" maxlength="7" pattern="[0-9]{7}"') +
       '</div></fieldset><button type="submit">Cadastrar tutor</button></form></section>' +
       '<section class="card"><h2>Tutores cadastrados</h2>' +
       (dados.tutores
@@ -285,12 +302,13 @@ function tutores() {
   const form = document.querySelector("#tutor");
   document.querySelector("#buscar-cep").onclick = async (evento) => {
     const botao = evento.currentTarget;
-    const cep = form.elements.cep.value.replace(/\D/g, "");
-    if (cep.length !== 8) return avisar("Informe um CEP com 8 dígitos.", true);
+    const cepDigitado = form.elements.cep.value.trim();
+    const cep = cepDigitado.replace("-", "");
+    if (!/^[0-9]{5}-?[0-9]{3}$/.test(cepDigitado)) return avisar("Informe um CEP com 8 dígitos.", true);
     botao.disabled = true;
     try {
       const endereco = await api("/clinica/cep/" + cep);
-      if (form.elements.cep.value.replace(/\D/g, "") !== cep) return;
+      if (form.elements.cep.value.trim() !== cepDigitado) return;
       Object.entries(endereco).forEach(
         ([c, v]) => (form.elements[c].value = v || ""),
       );
@@ -318,25 +336,40 @@ function tutores() {
       endereco[c] = d[c];
       delete d[c];
     }
-    endereco.cep = endereco.cep.replace(/\D/g, "");
     endereco.uf = endereco.uf.toUpperCase();
-    d.cpf = d.cpf.replace(/\D/g, "");
     await api("/clinica/tutores", "POST", { ...d, endereco });
     await navegar("tutores");
     avisar("Tutor cadastrado com sucesso.");
   });
 }
-function animais() {
+function mesesCompletos(nascimento, hoje) {
+  const [ano, mes, dia] = nascimento.split("-").map(Number);
+  const [anoAtual, mesAtual, diaAtual] = hoje.split("-").map(Number);
+  return (anoAtual - ano) * 12 + mesAtual - mes - Number(diaAtual < dia);
+}
+
+function nascimentoMinimo(limite) {
+  const hoje = dados.nascimento.hoje;
+  const [ano, mes, dia] = hoje.split("-").map(Number);
+  const mesLimite = mes - 2 - limite;
+  const ultimoDia = new Date(Date.UTC(ano, mesLimite + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(ano, mesLimite, Math.min(dia, ultimoDia) + 1)).toISOString().slice(0, 10);
+}
+
+function animais(edicao = null) {
+  const opcoes = (lista, atual) =>
+    lista.filter((item) => item.id === atual || !String(item.situacao).startsWith("INATIV"));
   estrutura(
     "Animais",
-    '<section class="card"><h2>Novo animal</h2><form id="animal"><div class="grid">' +
-      campo("nome", "Nome", "text", true) +
-      campo("codigo_rfid", "Código RFID", "text", true, 'maxlength="48"') +
-      seletor("tutor_id", "Tutor", ativos(dados.tutores)) +
-      seletor("especie_id", "Espécie", ativos(dados.especies)) +
+    '<section class="card"><h2>' + (edicao ? "Editar animal" : "Novo animal") +
+      '</h2><form id="animal"><div class="grid">' +
+      campo("nome", "Nome", "text", true, 'minlength="2" maxlength="100"') +
+      (edicao ? "" : campo("codigo_rfid", "Código RFID", "text", true, 'inputmode="numeric" minlength="15" maxlength="15" pattern="[0-9]{15}" placeholder="15 dígitos"')) +
+      seletor("tutor_id", "Tutor", opcoes(dados.tutores, edicao?.tutor_id)) +
+      seletor("especie_id", "Espécie", opcoes(dados.especies, edicao?.especie_id)) +
       seletor("raca_id", "Raça (opcional)", [], true) +
-      campo("sexo", "Sexo", "text", true) +
-      campo("cor", "Cor", "text", true) +
+      seletor("sexo", "Sexo", Object.entries(dados.nascimento.sexos).map(([id, nome]) => ({ id, nome }))) +
+      seletor("cor", "Cor", dados.nascimento.cores.map((nome) => ({ id: nome.toLowerCase(), nome }))) +
       campo(
         "peso_atual_kg",
         "Peso (kg)",
@@ -352,7 +385,10 @@ function animais() {
         false,
         'min="0" step="1"',
       ) +
-      '</div><p class="muted">Informe o nascimento ou a idade estimada. O RFID precisa ser único.</p><button type="submit">Cadastrar animal</button></form></section>' +
+      '</div><p class="muted">A idade em meses é calculada pelo nascimento. Se a data for desconhecida, informe uma estimativa.</p><button type="submit">' +
+      (edicao ? "Salvar alterações" : "Cadastrar animal") + "</button>" +
+      (edicao ? ' <button type="button" class="secondary" id="cancelar-edicao">Cancelar</button>' : "") +
+      "</form></section>" +
       '<section class="card"><h2>Fichas dos animais</h2>' +
       (dados.animais
         .map(
@@ -365,18 +401,20 @@ function animais() {
             a.id +
             '" class="secondary">Ficha de ' +
             escapar(a.nome) +
-            "</button></div>",
+            "</button>" +
+            '<button class="secondary" data-editar="' + a.id + '">Editar ' +
+            escapar(a.nome) + "</button></div>",
         )
         .join("") || "<p>Nenhum animal cadastrado.</p>") +
       "</section>",
   );
   const form = document.querySelector("#animal");
-  form.elements.especie_id.onchange = () => {
-    const racas = ativos(dados.racas).filter(
+  const atualizarRacas = () => {
+    const racas = opcoes(dados.racas, edicao?.raca_id).filter(
       (r) => r.especie_id == form.elements.especie_id.value,
     );
     form.elements.raca_id.innerHTML =
-      '<option value="">Não informado</option>' +
+      '<option value="">Sem raça definida</option>' +
       racas
         .map(
           (r) =>
@@ -384,12 +422,53 @@ function animais() {
         )
         .join("");
   };
+  const nascimento = form.elements.data_nascimento;
+  const idade = form.elements.idade_estimada_meses;
+  function atualizarIdade() {
+    const limite = dados.nascimento.limite_animal_meses[form.elements.especie_id.value];
+    if (limite) {
+      nascimento.min = nascimentoMinimo(limite);
+      idade.max = limite;
+    } else {
+      nascimento.removeAttribute("min");
+      idade.removeAttribute("max");
+    }
+    nascimento.max = dados.nascimento.hoje;
+    idade.readOnly = Boolean(nascimento.value);
+    if (nascimento.value) {
+      const meses = mesesCompletos(nascimento.value, dados.nascimento.hoje);
+      idade.value = meses >= 0 ? meses : "";
+    }
+  }
+  form.elements.especie_id.onchange = () => {
+    atualizarRacas();
+    atualizarIdade();
+  };
+  nascimento.oninput = () => {
+    if (!nascimento.value && idade.readOnly) idade.value = "";
+    atualizarIdade();
+  };
+  if (edicao) {
+    for (const campo of form.elements) {
+      if (campo.name && campo.name !== "raca_id") campo.value = campo.name === "cor" ? String(edicao.cor ?? "").toLowerCase() : edicao[campo.name] ?? "";
+    }
+    document.querySelector("#cancelar-edicao").onclick = () => animais();
+  }
+  atualizarRacas();
+  atualizarIdade();
+  if (edicao) form.elements.raca_id.value = edicao.raca_id ?? "";
+  document.querySelectorAll("[data-editar]").forEach((botao) => {
+    botao.onclick = () => {
+      animais(dados.animais.find((animal) => animal.id === Number(botao.dataset.editar)));
+      document.querySelector("#animal").elements.nome.focus();
+    };
+  });
   enviarFormulario("animal", async (d) => {
     if (d.data_nascimento === null && d.idade_estimada_meses === null)
       throw new Error("Informe o nascimento ou a idade estimada.");
-    await api("/animais", "POST", d);
+    await api(edicao ? "/animais/" + edicao.id : "/animais", edicao ? "PUT" : "POST", d);
     await navegar("animais");
-    avisar("Animal cadastrado e RFID vinculado.");
+    avisar(edicao ? "Animal atualizado com sucesso." : "Animal cadastrado e RFID vinculado.");
   });
   document
     .querySelectorAll("[data-ficha]")
@@ -431,13 +510,12 @@ function clinica() {
       ) +
       '<button type="submit">Registrar consulta</button></form></section><section class="card"><h2>Vacina</h2><form id="vacina">' +
       opcoesAnimais() +
-      campo("nome_vacina", "Nome da vacina", "text", true) +
-      campo("tipo_vacina", "Tipo da vacina") +
-      '<label class="checkbox"><input type="checkbox" name="antirrabica"> Vacina antirrábica</label>' +
+      '<label>Nome da vacina<select name="vacina_codigo" required></select></label>' +
+      '<p id="tipo-vacina" class="muted" aria-live="polite"></p>' +
       situacoes(["APLICADA", "AGENDADA", "CANCELADA"]) +
       campo("fabricante", "Fabricante") +
       campo("numero_lote", "Número do lote") +
-      campo("via_aplicacao", "Via de aplicação") +
+      seletor("via_aplicacao", "Via de aplicação", Object.entries(dados.nascimento.vias_vacina).map(([id, nome]) => ({ id, nome })), true) +
       campo("dose_etapa", "Dose / etapa", "text", true, 'maxlength="60"') +
       campo("validade_lote", "Validade do lote", "date") +
       campo("data_agendada", "Data agendada", "date") +
@@ -454,6 +532,7 @@ function clinica() {
         d,
       );
       form.reset();
+      if (nome === "vacina") atualizarCatalogo();
       form.elements.situacao.dispatchEvent(new Event("change"));
       avisar(
         (nome === "consulta" ? "Consulta" : "Vacina") +
@@ -463,6 +542,23 @@ function clinica() {
   }
   const consulta = document.querySelector("#consulta");
   const vacina = document.querySelector("#vacina");
+  const seletorVacina = vacina.elements.vacina_codigo;
+  const tipoVacina = document.querySelector("#tipo-vacina");
+  function mostrarTipo() {
+    const selecionada = dados.vacinas.find((item) => item.codigo === seletorVacina.value);
+    tipoVacina.textContent = selecionada ? "Tipo: " + selecionada.tipo : "";
+  }
+  function atualizarCatalogo() {
+    const animal = dados.animais.find((item) => String(item.id) === vacina.elements.animal_id.value);
+    const opcoes = animal ? dados.vacinas.filter((item) => item.especies.includes(animal.especie_id)) : [];
+    const aviso = animal ? "Sem vacinas no catálogo para esta espécie" : "Selecione um animal";
+    seletorVacina.replaceChildren(new Option(opcoes.length ? "Selecione a vacina" : aviso, ""));
+    for (const item of opcoes) seletorVacina.add(new Option(item.nome, item.codigo));
+    mostrarTipo();
+  }
+  vacina.elements.animal_id.onchange = atualizarCatalogo;
+  seletorVacina.onchange = mostrarTipo;
+  atualizarCatalogo();
   function exigirConsulta() {
     const realizada = consulta.elements.situacao.value === "REALIZADA";
     consulta.elements.peso_registrado_kg.required = realizada;
@@ -644,5 +740,117 @@ function catalogos() {
     });
   }
 }
-if (token) navegar("inicio");
-else login();
+function acessoPublico(titulo, formulario) {
+  app.innerHTML =
+    '<div class="container"><section class="card login"><h1>' + titulo +
+    '</h1><div id="aviso" role="status" tabindex="-1"></div>' + formulario +
+    '<p><button type="button" class="secondary" id="voltar-login">Voltar ao login</button></p></section></div>';
+  document.querySelector("#voltar-login").onclick = () => {
+    history.replaceState(null, "", location.pathname + location.search);
+    if (token) navegar("inicio");
+    else login();
+  };
+}
+
+function recuperarSenha() {
+  acessoPublico(
+    "Recuperar senha",
+    '<form id="recuperar">' +
+      campo("email", "E-mail", "email", true, 'autocomplete="email" maxlength="254"') +
+      '<button type="submit">Solicitar link</button></form>',
+  );
+  enviarFormulario("recuperar", async (d, form) => {
+    await api("/recuperacao-senha", "POST", d);
+    form.reset();
+    avisar("Se houver uma conta ativa e confirmada, enviaremos um link ao e-mail informado.");
+  });
+}
+
+function definirSenha(acao, codigo) {
+  const convite = acao === "convite";
+  const atributos = 'autocomplete="new-password" minlength="12" maxlength="256"';
+  acessoPublico(
+    convite ? "Primeiro acesso" : "Redefinir senha",
+    '<p>Use pelo menos 12 caracteres.</p><form id="definir-senha">' +
+      campo("senha", "Nova senha", "password", true, atributos) +
+      campo("confirmacao", "Confirme a nova senha", "password", true, atributos) +
+      '<button type="submit">Definir senha</button></form>',
+  );
+  enviarFormulario("definir-senha", async (_dados, form) => {
+    const senha = form.elements.senha.value;
+    if (senha !== form.elements.confirmacao.value) throw new Error("As senhas devem ser iguais.");
+    await api(convite ? "/convites/aceitar" : "/recuperacao-senha/concluir", "POST", { codigo, senha });
+    history.replaceState(null, "", location.pathname + location.search);
+    token = null;
+    sessionStorage.removeItem("clinica_token");
+    login("Senha definida. Entre com seu e-mail e a nova senha.");
+  });
+}
+
+async function acessos() {
+  const contas = await api("/veterinarios/acessos");
+  estrutura(
+    "Acessos da equipe",
+    '<section class="card"><h2>Convidar veterinário</h2><form id="convite"><div class="grid">' +
+      campo("nome_completo", "Nome completo", "text", true, 'maxlength="150"') +
+      campo("cpf", "CPF", "text", true, 'inputmode="numeric" maxlength="14"') +
+      campo("email", "E-mail profissional", "email", true, 'maxlength="254"') +
+      campo("telefone", "Telefone (opcional)", "tel", false, 'maxlength="20"') +
+      campo("numero_crmv", "Número do CRMV", "text", true, 'maxlength="20"') +
+      seletor("uf_crmv", "UF do CRMV", dados.regrasAcesso.ufs.map((uf) => ({ id: uf, nome: uf }))) +
+      '</div><button type="submit">Enviar convite</button></form></section>' +
+      '<section class="card"><h2>Contas da clínica</h2>' +
+      contas.map((conta) => {
+        const ativa = conta.situacao === "ATIVO";
+        const status = !ativa ? "Inativa" : conta.senha_confirmada ? "Ativa" : "Convite pendente";
+        return '<div class="row item"><div><strong>' + escapar(conta.nome_completo) +
+          '</strong><small>' + escapar(conta.email) + ' · ' +
+          (conta.administrador ? "Gestor" : "Veterinário") + ' · ' + status +
+          '</small></div><div>' +
+          (ativa && !conta.senha_confirmada ?
+            '<button class="secondary" data-reenviar="' + conta.id + '">Reenviar convite</button> ' : "") +
+          (ativa && !conta.propria_conta ?
+            '<button class="secondary" data-inativar="' + conta.id + '">Inativar conta</button>' : "") +
+          '</div></div>';
+      }).join("") + '</section>',
+  );
+  enviarFormulario("convite", async (d) => {
+    d.uf_crmv = d.uf_crmv.toUpperCase();
+    try {
+      await api("/veterinarios/convites", "POST", d);
+    } catch (erro) {
+      if (erro.status === 503) await acessos();
+      throw erro;
+    }
+    await acessos();
+    avisar("Convite registrado. Confira o e-mail ou o terminal da API no modo de demonstração.");
+  });
+  document.querySelectorAll("[data-reenviar], [data-inativar]").forEach((botao) => {
+    botao.onclick = async () => {
+      const reenviar = botao.dataset.reenviar;
+      if (!reenviar && !window.confirm("Inativar a conta e encerrar as sessões abertas?")) return;
+      botao.disabled = true;
+      try {
+        if (reenviar) await api("/veterinarios/" + reenviar + "/reenviar-convite", "POST");
+        else await api("/veterinarios/" + botao.dataset.inativar, "DELETE");
+        await acessos();
+        avisar(reenviar ? "Novo convite registrado." : "Conta inativada.");
+      } catch (erro) {
+        avisar(erro.message, true);
+      } finally {
+        botao.disabled = false;
+      }
+    };
+  });
+}
+
+function abrirPagina() {
+  const parametros = new URLSearchParams(location.hash.slice(1));
+  const acao = parametros.get("acao");
+  const codigo = parametros.get("codigo");
+  if (codigo && (acao === "convite" || acao === "recuperacao")) definirSenha(acao, codigo);
+  else if (token) navegar("inicio");
+  else login();
+}
+window.addEventListener("hashchange", abrirPagina);
+abrirPagina();
